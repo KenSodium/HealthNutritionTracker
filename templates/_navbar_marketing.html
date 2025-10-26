@@ -1,0 +1,120 @@
+{# templates/_navbar_marketing.html #}
+<nav data-nav="marketing"
+     class="navbar navbar-expand-lg bg-white sticky-top shadow-sm"
+     style="z-index:2000;">
+  <div class="container">
+    <a class="navbar-brand fw-semibold" href="{{ url_for('home') }}">Nutrition Tracker</a>
+
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navTop"
+            aria-controls="navTop" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div id="navTop" class="collapse navbar-collapse">
+      <ul class="navbar-nav me-auto">
+        <!-- Home -->
+        <li class="nav-item dropdown dropdown-hover-lg">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Home</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="/#goals">Goals</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('how_to') }}">How to use</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('about') }}">About</a></li>
+          </ul>
+        </li>
+        <li class="nav-item"><a class="nav-link" href="/app/foods/grid">Grid Sandbox</a></li>
+
+        <!-- File -->
+        <li class="nav-item dropdown dropdown-hover-lg">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">File</a>
+          <ul class="dropdown-menu">
+            {% if session.get('user') %}
+              <li><a class="dropdown-item" href="{{ url_for('app_daily') }}">New day</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('app_dashboard') }}">Open recent…</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#prefsModal">Preferences…</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="{{ url_for('app_foods') }}">Import foods (CSV)</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('app_foods') }}">Export my data</a></li>
+            {% else %}
+              <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('app_daily')) }}">New day</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('app_dashboard')) }}">Open recent…</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#prefsModal">Preferences…</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('app_foods')) }}">Import foods (CSV)</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('app_foods')) }}">Export my data</a></li>
+            {% endif %}
+          </ul>
+        </li>
+
+        <!-- App shortcuts -->
+        <li class="nav-item">
+          {% if session.get('user') %}
+            <a class="nav-link" href="{{ url_for('app_dashboard') }}">Dashboard</a>
+          {% else %}
+            <a class="nav-link" href="{{ url_for('login', next=url_for('app_dashboard')) }}">Dashboard</a>
+          {% endif %}
+        </li>
+
+        <li class="nav-item">
+          {% if session.get('user') %}
+            <a class="nav-link" href="{{ url_for('app_daily') }}">Daily Diary</a>
+          {% else %}
+            <a class="nav-link" href="{{ url_for('login', next=url_for('app_daily')) }}">Daily Diary</a>
+          {% endif %}
+        </li>
+
+        <!-- Food List -->
+        <li class="nav-item dropdown dropdown-hover-lg">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Food List</a>
+          <ul class="dropdown-menu">
+            {% if session.get('user') %}
+              <li><a class="dropdown-item" href="{{ url_for('app_foods') }}">Manage Food List</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="{{ url_for('food_search') }}">Lookup in USDA</a></li>
+            {% else %}
+              <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('app_foods')) }}">Manage Food List</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('food_search')) }}">Lookup in USDA</a></li>
+            {% endif %}
+          </ul>
+        </li>
+
+        <!-- Reports -->
+        <li class="nav-item dropdown dropdown-hover-lg">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Reports</a>
+          <ul class="dropdown-menu">
+            {% if session.get('user') %}
+              <li><a class="dropdown-item" href="{{ url_for('reports_day') }}">Day / Week / Month / Year</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('reports_share') }}">Share with clinician</a></li>
+            {% else %}
+              <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('reports_day')) }}">Day / Week / Month / Year</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('reports_share')) }}">Share with clinician</a></li>
+            {% endif %}
+          </ul>
+        </li>
+
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('subscribe') }}">Subscribe</a></li>
+      </ul>
+
+      <!-- Right-side CTAs -->
+      <ul class="navbar-nav">
+        {% if session.get('user') %}
+          <li class="nav-item me-2">
+            <a class="btn btn-outline-secondary" href="{{ url_for('app_dashboard') }}">Enter App</a>
+          </li>
+          <li class="nav-item">
+            <a class="btn btn-primary" href="{{ url_for('logout') }}">Log out</a>
+          </li>
+        {% else %}
+          <li class="nav-item me-2">
+            <a class="btn btn-outline-secondary" href="{{ url_for('login') }}">Sign in</a>
+          </li>
+          <li class="nav-item">
+            <a class="btn btn-primary" href="{{ url_for('signup') }}">Start Free</a>
+          </li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>

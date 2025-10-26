@@ -1,0 +1,104 @@
+{% extends "app_base.html" %}
+{% block title %}Demo Dashboard — Nutrition Tracker{% endblock %}
+{% include "_navbar_app.html" %}
+
+{% block content %}
+<div class="page">
+  <div class="page-wrapper">
+    <div class="container-xl">
+
+      <!-- Page header -->
+      <div class="page-header d-print-none">
+        <div class="row align-items-center">
+          <div class="col">
+            <h2 class="page-title">Demo Dashboard</h2>
+            <div class="text-secondary">Clean KPIs + a data table (Tabler)</div>
+          </div>
+          <div class="col-auto">
+            <a href="/daily" class="btn btn-primary">Go to Daily Log</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI cards -->
+      <div class="row row-cards">
+        <div class="col-sm-6 col-lg-3">
+          <div class="card card-sm">
+            <div class="card-body">
+              <div class="d-flex align-items-center">
+                <span class="ti ti-saltpeper icon-md text-primary me-3"></span>
+                <div>
+                  <div class="h3 mb-0">{{ kpis.sodium_avg }} mg</div>
+                  <div class="text-secondary">Avg Sodium ({{ days }}d)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="card card-sm">
+            <div class="card-body">
+              <div class="d-flex align-items-center">
+                <span class="ti ti-leaf icon-md text-green me-3"></span>
+                <div>
+                  <div class="h3 mb-0">{{ kpis.potassium_avg }} mg</div>
+                  <div class="text-secondary">Avg Potassium ({{ days }}d)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- add more tiles as you like -->
+      </div>
+
+      <!-- Data table -->
+      <div class="row row-cards mt-3">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Top sodium contributors</h3>
+            </div>
+            <div class="table-responsive">
+              <table class="table card-table table-vcenter">
+                <thead>
+                  <tr>
+                    <th>Food</th>
+                    <th class="text-end">Sodium (mg)</th>
+                    <th class="text-end">Potassium (mg)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in top_foods %}
+                  <tr>
+                    <td>{{ row.food }}</td>
+                    <td class="text-end">{{ row.na }}</td>
+                    <td class="text-end">{{ row.k }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            <div class="card-footer text-secondary small">
+              Demo data; wire to your DB when ready.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div> <!-- /container -->
+  </div> <!-- /page-wrapper -->
+</div> <!-- /page -->
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+const ctx = document.createElement('canvas');
+document.querySelector('.row.row-cards').insertAdjacentElement('afterend', document.createElement('div')).appendChild(ctx);
+new Chart(ctx, {
+  type: 'line',
+  data: { labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+    datasets: [{ label:'Sodium (mg)', data:[1400,1600,1500,1800,1550,1700,1450] }] },
+  options: { responsive:true, plugins:{legend:{display:false}} }
+});
+</script>
+{% endblock %}

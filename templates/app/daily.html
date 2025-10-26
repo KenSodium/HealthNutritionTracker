@@ -1,0 +1,142 @@
+{# templates/app/daily.html #}
+{% extends "app_base.html" %}
+{% block title %}Daily Diary — Nutrition Tracker{% endblock %}
+
+{% block content %}
+  <div class="page-wrapper">
+    <div class="container-xl">
+
+      <!-- Header: date controls -->
+      <div class="page-header d-print-none">
+        <div class="row align-items-center">
+          <div class="col">
+            <h2 class="page-title">Daily Diary</h2>
+            <div class="text-muted mt-1">Log what you ate — fast.</div>
+          </div>
+          <div class="col-auto ms-auto d-print-none">
+            <div class="d-flex gap-2 align-items-center">
+              <button class="btn btn-outline" id="btn-prev">←</button>
+              <input class="form-control" type="date" id="day-picker" style="width: 180px;">
+              <button class="btn btn-outline" id="btn-next">→</button>
+              <a class="btn btn-primary" href="{{ url_for('app_daily') }}">Today</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Top row: Entries (wide) + Totals (narrow) ===== -->
+      <div class="row g-3">
+        <!-- Entries: wide (stops before totals) -->
+        <div class="col-12 col-xl-9">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h3 class="card-title mb-0">
+                  Total Nutrients for <span id="day-label"></span>
+                </h3>
+                <div class="text-muted small">
+                  Enter the foods you ate on <span id="day-label-2"></span>
+                </div>
+              </div>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-vcenter card-table mb-0">
+                  <thead>
+                    <tr>
+                      <th>Food</th>
+                      <th style="width:110px" class="text-end">Grams</th>
+                      <th class="text-end">Na (mg)</th>
+                      <th class="text-end">K (mg)</th>
+                      <th style="width:60px"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="entries-body"><!-- filled by JS --></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card-footer text-muted small">
+              Quantities autosave on blur. Remove with 🗑️.
+            </div>
+          </div>
+        </div>
+
+        <!-- Today’s Totals -->
+        <div class="col-12 col-xl-3">
+          <div class="card">
+            <div class="card-header"><h3 class="card-title">Today’s Totals</h3></div>
+            <div class="card-body" id="totals-panel"><!-- filled by JS --></div>
+            <div class="card-footer">
+              <a class="btn btn-outline w-100" href="{{ url_for('reports_day') }}">View day report</a>
+            </div>
+          </div>
+
+          <div class="card mt-2">
+            <div class="card-header"><h3 class="card-title">Inspector</h3></div>
+            <div class="card-body text-muted small">
+              Select an entry to see details here (coming soon).
+            </div>
+          </div>
+        </div>
+
+        <!-- Second row: My Foods full-width -->
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">My Foods</h3>
+              <div class="ms-auto d-flex gap-2 align-items-center">
+                <input id="foods-filter" class="form-control" placeholder="Filter my foods…" style="max-width:260px">
+                <a class="btn btn-sm btn-outline" href="{{ url_for('food_search') }}">Manage list →</a>
+              </div>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-vcenter card-table mb-0" id="tbl-foods">
+                  <thead>
+                    <tr>
+                      <th data-sort="text">Food</th>
+                      <th class="text-end" data-sort="num">Na (mg/portion)</th>
+                      <th class="text-end" data-sort="num">K (mg/portion)</th>
+                      <th style="width:60px"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="foods-body"><!-- filled by JS --></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card-footer text-muted small">
+              Tip: click a header to sort.
+            </div>
+          </div>
+        </div>
+      </div> <!-- /row -->
+
+    </div> <!-- /container-xl -->
+  </div> <!-- /page-wrapper -->
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script>
+    // Boot payload (guard against Undefined)
+    window.__DAILY_BOOT__ = {
+      date: "{{ date_iso|default('', true) }}",
+      myFoods: {{ (my_foods or [])|tojson }},
+    };
+  </script>
+  <script src="{{ url_for('static', filename='app/daily.js') }}?v=10"></script>
+
+  <!-- Keep the subtitle date in sync with the main label -->
+  <script>
+    (function(){
+      function syncDup(){
+        var a = document.getElementById('day-label');
+        var b = document.getElementById('day-label-2');
+        if (a && b) b.textContent = a.textContent || '';
+      }
+      window.addEventListener('load', syncDup);
+      var picker = document.getElementById('day-picker');
+      if (picker) picker.addEventListener('change', syncDup);
+    })();
+  </script>
+{% endblock %}

@@ -1,0 +1,42 @@
+{# templates/landing.html #}
+{% extends "marketing_base.html" %}
+{% block title %}Nutrition Tracker — Calm, Clear Nutrition{% endblock %}
+
+{% block head_extra %}
+<style>
+  .hero-overlay { background: rgba(0, 132, 168, 0.60); }
+  .hero-wave { fill: rgba(0,132,168,0.25); }
+  .hero-minvh { min-height: 65vh; }
+</style>
+{% endblock %}
+
+{% block content %}
+  {# SINGLE NAVBAR via partial — keep only this #}
+  {% include "_navbar_marketing.html" %}
+
+  <header class="position-relative">
+    <div class="page-header hero-minvh border-radius-xl position-relative hero-bg">
+      <span class="position-absolute top-0 start-0 w-100 h-100 hero-overlay"></span>
+
+      <div class="container position-relative h-100">
+        <div class="row align-items-center justify-content-center text-center h-100">
+          <div class="col-lg-10 col-xl-8">
+            <h1 class="display-4 fw-bold text-white mb-3">Achieve a healthy balance.</h1>
+            <p class="lead text-white-50 mb-4">
+              Target the nutrients that promote kidney health.
+              Get your sodium into a range that controls blood <strong>pressure</strong>. I did it; so can you.
+            </p>
+            <div class="d-inline-flex gap-3">
+              <a class="btn btn-white text-dark shadow-sm px-4" href="/signup">Create Account</a>
+              <a class="btn btn-outline-light px-4" href="/login">Sign in</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <svg class="position-absolute bottom-0 start-0 w-100" viewBox="0 0 1440 120" preserveAspectRatio="none" aria-hidden="true">
+        <path class="hero-wave" d="M0,64L80,80C160,96,320,128,480,122.7C640,117,800,75,960,53.3C1120,32,1280,32,1360,32L1440,32L1440,120L1360,120C1280,120,1120,120,960,120C800,120,640,120,480,120C320,120,160,120,80,120L0,120Z"></path>
+      </svg>
+    </div>
+  </header>
+{% endblock %}

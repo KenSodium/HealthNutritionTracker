@@ -1,0 +1,97 @@
+{% extends "app_base.html" %}
+{% block title %}Foods Grid — Frozen + Column Width Control{% endblock %}
+
+{% block content %}
+<div class="page-wrapper">
+  <div class="container-xl">
+
+    <div class="page-header d-print-none">
+      <div class="row align-items-center">
+        <div class="col">
+          <h2 class="page-title">Experimental Grid</h2>
+          <div class="text-muted mt-1">
+            Frozen first column, left/right panning, import/export, insert/delete, and a Column Width slider.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <style>
+      /* NEW: make sure the grid’s own scroller is visible */
+      #grid-wrap .tabulator .tabulator-tableholder { overflow-x: auto !important; }
+    </style>
+
+    <div class="card">
+      <div class="card-body p-0">
+
+        <!-- TOP TOOLBAR -->
+        <div class="p-3 d-flex flex-wrap gap-3 align-items-center border-bottom">
+
+          <!-- Insert / Delete -->
+          <div class="d-flex align-items-center gap-2">
+            <button id="btn-insert-top" class="btn btn-outline">Insert Row (top)</button>
+            <button id="btn-delete-row" class="btn btn-outline text-danger">Delete Row</button>
+            <button id="btn-delete" class="btn btn-outline text-danger">Delete Selected</button>
+          </div>
+
+          <div class="vr mx-2"></div>
+
+          <!-- Import / Export -->
+          <div class="d-flex align-items-center gap-2">
+            <button id="btn-export" class="btn btn-outline">Export CSV</button>
+            <label class="btn btn-outline mb-0">
+              Import CSV <input id="file-import" type="file" accept=".csv,.tsv,text/csv,text/tab-separated-values" hidden>
+            </label>
+          </div>
+
+          <div class="vr mx-2"></div>
+
+          <!-- Food Search -->
+          <div class="d-flex align-items-center gap-2">
+            <input id="food-search" class="form-control" placeholder="Find food…" style="max-width:220px">
+            <button id="btn-clear-search" class="btn btn-outline" title="Clear search">✕</button>
+          </div>
+
+          <div class="vr mx-2"></div>
+
+          <!-- Column width control -->
+          <div class="d-flex align-items-center gap-2">
+            <label for="colw" class="form-label mb-0">Column Width</label>
+            <input id="colw" type="range" min="70" max="180" step="5" value="110" />
+            <span id="colw-val" class="text-muted small">110px</span>
+          </div>
+        </div>
+
+        <!-- GRID -->
+        <div id="grid-wrap"
+             style="width:100%; height:540px; /* CHANGED: allow overflow */ overflow: visible; border-bottom:1px solid var(--tblr-border-color,#ddd);">
+          <div id="foods-grid"></div>
+        </div>
+
+        <!-- BOTTOM CONTROLS -->
+        <div class="p-3 d-flex flex-wrap gap-2 align-items-center">
+          <button id="btn-pan-left" class="btn btn-outline">◀︎</button>
+          <button id="btn-pan-right" class="btn btn-outline">▶︎</button>
+          <span class="text-muted small ms-1">Pan</span>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="text-muted small mt-2">
+      Local files required:
+      <code>/static/vendor/tabulator/dist/css/tabulator.min.css</code>,
+      <code>/static/vendor/tabulator/dist/js/tabulator.min.js</code>.
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/tabulator/dist/css/tabulator.min.css') }}">
+  <script src="{{ url_for('static', filename='vendor/tabulator/dist/js/tabulator.min.js') }}"></script>
+  <!-- bump the cache number -->
+  <script src="{{ url_for('static', filename='app/foods_grid.js') }}?v=34"></script>
+{% endblock %}

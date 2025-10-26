@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Recipe Nutrition Calculator</title>
+  <style>
+    body { background-color: #fefaf3; font-family: sans-serif; }
+    .bar { background:#00796b; padding:10px; margin-bottom:12px; }
+    .bar a { color:#fff; margin-right:20px; text-decoration:none; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #666; padding: 6px 8px; vertical-align: top; }
+    input[type="text"] { width: 260px; }
+    input[type="number"] { width: 120px; }
+    .right { text-align: right; }
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .card { border: 1px solid #ccc; padding: 10px; background: #fff; }
+    .muted { color:#555; }
+  </style>
+  <style>
+  #busy {
+    display:none; position:fixed; inset:0; background:rgba(255,255,255,0.6);
+    z-index: 9999; align-items:center; justify-content:center; font:16px/1.4 sans-serif;
+  }
+  #busy .box { background:#fff; border:1px solid #ccc; padding:12px 16px; border-radius:8px; }
+</style>
+<div id="busy"><div class="box">Working… ⏳</div></div>
+<script>
+  // show spinner on any form submit
+  document.addEventListener('submit', function (e) {
+    const busy = document.getElementById('busy');
+    if (busy) busy.style.display = 'flex';
+  }, true);
+  // hide if page cached/back
+  window.addEventListener('pageshow', function (e) {
+    const busy = document.getElementById('busy');
+    if (busy) busy.style.display = 'none';
+  });
+</script>
+
+</head>
+<body>
+  <div class="bar">
+    <a href="{{ url_for('coach.assistant') }}">🏠 Assistant Home</a>
+    <a href="{{ url_for('search.index') }}">🔍 Search USDA</a>
+    <a href="{{ url_for('app_daily') }}">🧾 My Daily Food Log</a>
+    <a href="{{ url_for('recipes.recipes') }}"><strong>🍲 Recipes</strong></a>
+    <a href="{{ url_for('food_portions') }}">Food Portion Reference</a>
+    <a href="#">⚙️ Settings</a>
+  </div>
+  {% if notice %}
+    <p style="color:#b00; font-weight:bold; margin: 0.5rem 0;">{{ notice }}</p>
+  {% endif %}
+  <h1>Recipe Nutrition Calculator</h1>
+
+  <div class="cols">
+    <!-- Left: search & pick -->
+    <div class="card">
+      <h3>1) Search Ingredient</h3>
+      <form method="post" action="{{ url_for('recipes.recipes') }}">
+        <input type="text" name="ingredient_query" placeholder="e.g., salmon, tomato, olive oil" required>
+        <button type="submit" name="action" value="search">Search</button>
+        <button type="submit" name="action" value="clear_picker">Clear Picker</button>
+      </form>
+
+      {% if search_hits %}
+      <h4>Top Matches</h4>
+      <form method="post" action="{{ url_for('recipes.recipes') }}">
+        <table>
+          <tr><th></th><th>Description</th><th>Detail</th><th>Type</th></tr>
+          {% for h in search_hits %}
+          <tr>
+            <td><input type="radio" name="fdc_pick" value="{{ h.fdcId }}" {% if loop.first %}checked{% endif %}></td>
+            <td>{{ h.description }}</td>
+            <td class="muted">{{ h.detail }}</td>
+            <td>{{ h.dataType }}</td>
+          </tr>
+          {% endfor %}
+        </table>
+        <button type="submit" name="action" value="pick">Pick Selected</button>
+      </form>
+      {% endif %}
+
+      {% if picked_detail %}
+      <h4>Picked: {{ picked_detail.description }} <span class="muted">({{ picked_detail.dataType }})</span></h4>
+
+      <!-- Add by grams -->
+      <form method="post" action="{{ url_for('recipes.recipes') }}" style="margin-bottom: 8px;">
+        <label>Grams:&nbsp;</label>
+        <input type="number" step="0.01" name="grams_input" placeholder="e.g., 150">
+        <button type="submit" name="action" value="add_by_grams">Add by grams</button>
+      </form>
+
+  <!-- Add by unit name + qty (auto-portion match) -->
+      <form method="post" action="{{ url_for('recipes.recipes') }}" style="margin-top:6px;">
+        <label>Unit:&nbsp;</label>
+        <input type="text" name="unit_name" placeholder="e.g., cloves, cup, tbsp" style="width:160px;">
+        &nbsp;×&nbsp;
+        <input type="number" step="0.01" name="unit_qty" placeholder="e.g., 4" style="width:100px;">
+        <button type="submit" name="action" value="add_by_unit">Add by unit</button>
+      </form>
+
+      <!-- Add by portion -->
+      {% if picked_portions %}
+      <form method="post" action="{{ url_for('recipes.recipes') }}">
+        <label>Portion:&nbsp;</label>
+        <select name="portion_id">
+          {% for p in picked_portions %}
+            <option value="{{ p.id }}">{{ p.label }} ≈ {{ p.gramWeight }} g</option>
+          {% endfor %}
+        </select>
+        &nbsp;×&nbsp;
+        <input type="number" step="0.01" name="portion_qty" value="1">
+        <button type="submit" name="action" value="add_by_portion">Add by portion</button>
+      </form>
+      {% else %}
+        <p class="muted">No portions listed for this item.</p>
+      {% endif %}
+      {% endif %}
+      <hr>
+       <!-- NEW: Paste recipe (bulk) -->
+      <h3>Paste Recipe (bulk)</h3>
+      <form method="post" action="{{ url_for('recipes.recipes') }}">
+        <textarea name="bulk_text" rows="6" style="width:100%;"
+          placeholder="e.g.&#10;1 yellow onion, diced&#10;2 pounds boneless skinless chicken thighs&#10;8 pepperoncini&#10;4 garlic cloves&#10;3/4 cup unsalted butter&#10;1 cup unsalted chicken stock&#10;1/4 cup soy sauce">
+        </textarea>
+        <div style="margin-top:6px;">
+          <button type="submit" name="action" value="bulk_add">Parse & Add All</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Right: items & totals -->
+    <div class="card">
+      <h3>2) Ingredients in Recipe</h3>
+      {% if items %}
+      <form method="post" action="{{ url_for('recipes.recipes') }}">
+        <table>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th class="right">Grams</th>
+            {% for n in nutrient_names %}<th class="right">{{ n }}</th>{% endfor %}
+            <th>Remove</th>
+          </tr>
+          {% for it in items %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ it.name }}</td>
+            <td class="right">{{ it.grams }}</td>
+            {% for n in nutrient_names %}
+              <td class="right">{{ it.scaled[n] }}</td>
+            {% endfor %}
+            <td class="right"><input type="checkbox" name="remove_index" value="{{ loop.index0 }}"></td>
+          </tr>
+          {% endfor %}
+          <tr>
+            <th colspan="2" class="right">Totals (whole recipe)</th>
+            <th class="right">{{ total_weight }}</th>
+            {% for n in nutrient_names %}<th class="right">{{ totals[n] }}</th>{% endfor %}
+            <th></th>
+          </tr>
+          <tr>
+            <th colspan="2" class="right">Per 100 g</th>
+            <th class="right">100</th>
+            {% for n in nutrient_names %}<th class="right">{{ recipe_per100[n] }}</th>{% endfor %}
+            <th></th>
+          </tr>
+        </table>
+        <div style="margin-top:8px;">
+          <button name="action" value="remove" type="submit">Remove Selected</button>
+          <button name="action" value="clear_items" type="submit">Clear All</button>
+        </div>
+
+        <h3 style="margin-top:14px;">3) Save / Send</h3>
+        <label>Recipe name:&nbsp;</label>
+        <input type="text" name="recipe_name" placeholder="e.g., Salmon Bowl">
+        <button name="action" value="save_to_my_list" type="submit">Save to My Food List (per 100 g)</button>
+        <button name="action" value="send_to_daily" type="submit">Send to Daily</button>
+      </form>
+      {% else %}
+        <p class="muted">No ingredients yet. Search and pick on the left.</p>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>

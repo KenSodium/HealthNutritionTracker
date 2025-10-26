@@ -1,0 +1,90 @@
+{% extends "marketing_base.html" %}
+{% block title %}About — Nutrition Tracker{% endblock %}
+
+{% block content %}
+<h1 style="text-align:center;color:#dcbf6e">SOFT UI DEMO PAGE</h1>
+
+<!-- ======= Page header (from Soft UI "About Us" vibe, simplified for demo) ======= -->
+<header class="position-relative">
+  <div class="page-header min-vh-60 border-radius-xl"
+       style="
+         background-image: url('{{ url_for('static', filename='img/curved1.jpg') }}');
+         background-size: cover; background-position: center;">
+    <span class="mask bg-gradient-primary opacity-5"></span>
+    <div class="container h-100">
+      <div class="row justify-content-center align-items-center h-100">
+        <div class="col-lg-8 text-center">
+          <h1 class="text-white mb-3">About Nutrition Tracker</h1>
+          <p class="text-white-50 lead mb-0">
+            Calm, clear nutrition tracking—built for people managing CKD and high blood pressure.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ======= About body section ======= -->
+<section class="py-6">
+  <div class="container">
+    <div class="row g-4 align-items-start">
+      <div class="col-lg-6">
+        <h2 class="fw-semibold mb-3">Why we exist</h2>
+        <p class="text-secondary">
+          We help you understand sodium, potassium, protein, and calories—without overwhelm.
+          Fast daily logging, gentle guardrails, and simple summaries you can share with your care team.
+        </p>
+        <ul class="list-unstyled">
+          <li class="d-flex align-items-start mb-2">
+            <i class="fa-solid fa-circle-check text-primary me-2 mt-1"></i>
+            <span>Track key nutrients with clarity.</span>
+          </li>
+          <li class="d-flex align-items-start mb-2">
+            <i class="fa-solid fa-circle-check text-primary me-2 mt-1"></i>
+            <span>Private by default—export when you choose.</span>
+          </li>
+          <li class="d-flex align-items-start">
+            <i class="fa-solid fa-circle-check text-primary me-2 mt-1"></i>
+            <span>Clinician-friendly weekly previews.</span>
+          </li>
+        </ul>
+      </div>
+      <div class="col-lg-5 ms-auto">
+        <div class="card shadow-sm border-0">
+          <div class="card-body p-4">
+            <div class="d-flex align-items-center mb-3">
+              <span class="icon icon-shape bg-gradient-primary shadow text-center border-radius-md me-3">
+                <i class="fa-solid fa-heart-pulse text-white"></i>
+              </span>
+              <h5 class="mb-0">Our approach</h5>
+            </div>
+            <p class="text-secondary mb-3">
+              Comfort and determination: a supportive tone with clear targets and progress.
+            </p>
+            <div class="row text-center">
+              <div class="col-4">
+                <div class="h4 mb-0">7/7</div>
+                <div class="small text-muted">Days logged</div>
+              </div>
+              <div class="col-4">
+                <div class="h4 mb-0">82%</div>
+                <div class="small text-muted">Na on target</div>
+              </div>
+              <div class="col-4">
+                <div class="h4 mb-0">3</div>
+                <div class="small text-muted">Swap ideas</div>
+              </div>
+            </div>
+            <hr class="my-4">
+            <a href="/signup" class="btn btn-primary me-2">Start free</a>
+            <a href="/login"  class="btn btn-outline-secondary">Sign in</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- optional: team / values / FAQ sections can go here later -->
+  </div>
+</section>
+
+{% endblock %}

@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block title %}Master Food List — CKD Diet Tracker{% endblock %}
+
+{% block head_extra %}
+<style>
+  /* Page-specific styles preserved from your original file */
+  body { background-color: #e0f7fa; }
+  table { border-collapse: collapse; table-layout: auto; width: 100%; }
+  th, td { padding: 4px 8px; border: 1px solid #666; word-wrap: break-word; }
+  th { white-space: nowrap; }
+  .small { font-size: 12px; color: #333; }
+
+  /* Busy overlay */
+  #busy {
+    display:none; position:fixed; inset:0; background:rgba(255,255,255,0.6);
+    z-index: 9999; align-items:center; justify-content:center; font:16px/1.4 sans-serif;
+  }
+  #busy .box { background:#fff; border:1px solid #ccc; padding:12px 16px; border-radius:8px; }
+</style>
+
+<script>
+  // show spinner on any form submit
+  document.addEventListener('submit', function () {
+    const busy = document.getElementById('busy');
+    if (busy) busy.style.display = 'flex';
+  }, true);
+  // hide if page cached/back
+  window.addEventListener('pageshow', function () {
+    const busy = document.getElementById('busy');
+    if (busy) busy.style.display = 'none';
+  });
+</script>
+{% endblock %}
+
+{% block content %}
+<div id="busy"><div class="box">Working… ⏳</div></div>
+
+<!-- NOTE: Top navbar is now provided by templates/_navbar.html via base.html -->
+
+<h1>Search USDA Foods</h1>
+<p><a href="{{ url_for('coach.assistant') }}">🧭 Assistant Options</a></p>
+<hr>
+
+<!-- Search Form (with multi-select checkboxes) -->
+<form action="{{ url_for('search.search') }}" method="get" style="margin-bottom: 10px;">
+  <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+    <div style="min-width:280px;">
+      <label>Search</label><br>
+      <input name="query" placeholder="e.g., tomato, salmon, crackers" value="{{ query }}" style="width:100%;">
+    </div>
+
+    <div>
+      <label>Data Types (choose one or more)</label><br>
+      {% set sel = (search_types or []) %}
+      <label style="margin-right:10px;">
+        <input type="checkbox" name="types" value="SR Legacy" {% if 'SR Legacy' in sel %}checked{% endif %}> SR Legacy
+      </label>
+      <label style="margin-right:10px;">
+        <input type="checkbox" name="types" value="Foundation" {% if 'Foundation' in sel %}checked{% endif %}> Foundation
+      </label>
+      <label style="margin-right:10px;">
+        <input type="checkbox" name="types" value="Survey (FNDDS)" {% if 'Survey (FNDDS)' in sel %}checked{% endif %}> Survey (FNDDS)
+      </label>
+      <label style="margin-right:10px;">
+        <input type="checkbox" name="types" value="Branded" {% if 'Branded' in sel %}checked{% endif %}> Branded
+      </label>
+      <a href="#" id="selectAll" style="margin-left:8px; font-size: 12px;">Select all</a>
+      <a href="#" id="clearAll" style="margin-left:8px; font-size: 12px;">Clear</a>
+    </div>
+
+    <div>
+      <button type="submit">Search</button>
+    </div>
+  </div>
+</form>
+
+<script>
+  document.getElementById('selectAll')?.addEventListener('click', function (e) {
+    e.preventDefault();
+    document.querySelectorAll('input[name="types"]').forEach(cb => cb.checked = true);
+  });
+  document.getElementById('clearAll')?.addEventListener('click', function (e) {
+    e.preventDefault();
+    document.querySelectorAll('input[name="types"]').forEach(cb => cb.checked = false);
+  });
+</script>
+
+{% if results %}
+  <h2>Pick Foods To Add to My Food List</h2>
+  <form method="post" action="{{ url_for('search.index') }}">
+    <input type="hidden" name="action" value="add">
+    <table>
+      <tr>
+        <th>Select</th>
+        <th>Description</th>
+        <th>Detail</th>
+        <th>Data Type</th>
+      </tr>
+      {% for food in results %}
+      <tr>
+        <td><input type="checkbox" name="selected_fdc" value="{{ food.fdcId }}"></td>
+        <td>{{ food.description }}</td>
+        <td>{{ food.detail }}</td>
+        <td>{{ food.dataType }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    <button type="submit">Add Selected to My Food List</button>
+  </form>
+
+  <!-- Pagination -->
+  <form action="{{ url_for('search.search') }}" method="get" style="margin-top: 8px;">
+    <input type="hidden" name="query" value="{{ query }}">
+    {% for t in sel %}
+      <input type="hidden" name="types" value="{{ t }}">
+    {% endfor %}
+    <button type="submit" name="page" value="{{ page - 1 }}" {% if page <= 1 %}disabled{% endif %}>← Prev</button>
+    <button type="submit" name="page" value="{{ page + 1 }}">Next →</button>
+  </form>
+{% endif %}
+
+<hr>
+
+<h2>My Food List</h2>
+<p class="small">
+  Choose how you’ll measure each food. We’ll preview a <strong>1-unit portion</strong> in grams and scale the nutrients accordingly.
+  (For <em>g</em>, we preview 100 g.)
+</p>
+
+<form method="post" action="{{ url_for('search.index') }}">
+  <button type="submit" name="action" value="clear_master">Clear All</button>
+  <button type="submit" name="action" value="remove_master">Remove Checked</button>
+
+  <table style="margin-top:8px;">
+    <tr>
+      <th></th>
+      <th>Description</th>
+      <th>Choose Unit</th>
+      <th>Portion (gms)</th>
+
+      <!-- Featured first -->
+      <th>Na (mg)</th>
+      <th>K (mg)</th>
+      <th>Protein (g)</th>
+      <th>Calories</th>
+
+      <!-- Full remaining list -->
+      <th>Carbs (g)</th>
+      <th>Fat (g)</th>
+      <th>Sat Fat (g)</th>
+      <th>Mono Fat (g)</th>
+      <th>Poly Fat (g)</th>
+      <th>Sugar (g)</th>
+      <th>Calcium (mg)</th>
+      <th>Magnesium (mg)</th>
+      <th>Iron (mg)</th>
+    </tr>
+
+    {% for f in my_food_list %}
+      {% set pref = f.pref or {} %}
+      {% set unit = (pref.unit_key or 'g')|lower %}
+      {% set comp = f.computed or {} %}
+      {% set grams = comp.portion_grams or '' %}
+      {% set pn = comp.portion_nutrients or {} %}
+      <tr>
+        <td><input type="checkbox" name="remove_id" value="{{ f.fdcId }}"></td>
+        <td>{{ f.description }}</td>
+
+        <td>
+          <!-- Per-row mini form to choose the unit -->
+          <form method="post" action="{{ url_for('search.index') }}" style="display:flex; gap:6px; align-items:center;">
+            <input type="hidden" name="action" value="choose_unit">
+            <input type="hidden" name="fid" value="{{ f.fdcId }}">
+            <select name="unit_key">
+              <option value="g"    {% if unit=='g' %}selected{% endif %}>g (preview 100g)</option>
+              <option value="cup"  {% if unit=='cup' %}selected{% endif %}>cup</option>
+              <option value="tbsp" {% if unit=='tbsp' %}selected{% endif %}>tbsp</option>
+              <option value="tsp"  {% if unit=='tsp' %}selected{% endif %}>tsp</option>
+              <option value="clove" {% if unit=='clove' %}selected{% endif %}>clove</option>
+            </select>
+            <!-- Optional grams override:
+            <input name="unit_grams" type="number" step="0.1" min="0" placeholder="grams" style="width:90px">
+            -->
+            <button type="submit">Set</button>
+          </form>
+        </td>
+
+        <td>{{ grams }}</td>
+
+        <!-- Featured -->
+        <td>{{ (pn.get('Sodium', 0))|round(0) }}</td>
+        <td>{{ (pn.get('Potassium', 0))|round(0) }}</td>
+        <td>{{ (pn.get('Protein', 0))|round(2) }}</td>
+        <td>{{ (pn.get('Calories', 0))|round(0) }}</td>
+
+        <!-- Rest of the 13-nutrient set -->
+        <td>{{ (pn.get('Carbs', 0))|round(2) }}</td>
+        <td>{{ (pn.get('Fat', 0))|round(2) }}</td>
+        <td>{{ (pn.get('Sat Fat', 0))|round(2) }}</td>
+        <td>{{ (pn.get('Mono Fat', 0))|round(2) }}</td>
+        <td>{{ (pn.get('Poly Fat', 0))|round(2) }}</td>
+        <td>{{ (pn.get('Sugar', 0))|round(2) }}</td>
+        <td>{{ (pn.get('Calcium', 0))|round(0) }}</td>
+        <td>{{ (pn.get('Magnesium', 0))|round(0) }}</td>
+        <td>{{ (pn.get('Iron', 0))|round(2) }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+</form>
+
+<p><a href="{{ url_for('app_daily') }}">→ Go to Daily Log</a></p>
+{% endblock %}

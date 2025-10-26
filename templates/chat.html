@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Sodium Coach</title>
+  <style>
+    body { font-family: sans-serif; background: #e3f2fd; padding: 20px; }
+    input[type=text] { width: 60%; padding: 8px; }
+    input[type=submit] { padding: 8px 16px; margin-top: 10px; }
+    .response { background: #fff3e0; padding: 10px; border: 1px solid #ccc; margin-top: 20px; }
+  </style>
+</head>
+<body>
+   <nav style="background-color: #00796b; padding: 10px;">
+    <a href="{{ url_for('coach.assistant') }}" style="color: white; margin-right: 20px; text-decoration: none;">🏠 Assistant Home</a>
+    <a href="{{ url_for('search.index') }}" style="color: white; margin-right: 20px; text-decoration: none;">🔍 Search USDA</a>
+    <a href="{{ url_for('app_daily') }}" style="color: white; margin-right: 20px; text-decoration: none;">🧾 My Daily Food Log</a>
+    <a href="{{ url_for('recipes.recipes') }}" style="color: white; margin-right: 20px; text-decoration: none;">🍲 Recipes</a>
+    <a href="#" style="color: white; text-decoration: none;">⚙️ Settings</a>
+  </nav>
+  <h1>💬 Talk to Sodium Coach</h1>
+  <form method="post">
+    <label>What did you eat?</label><br>
+    <input type="text" name="user_message" placeholder="e.g., salmon, crackers" value="{{ user_message }}">
+    <br><br>
+    <label>Weight (grams, optional):</label><br>
+    <input type="text" name="weight_in_grams" placeholder="e.g., 150">
+    <br><br>
+    <input type="submit" value="Ask">
+  </form>
+
+  {% if reply %}
+  <div class="response">{{ reply | safe }}</div>
+  {% endif %}
+
+  <p><a href="{{ url_for('app_daily') }}">📋 View My Daily Food Log</a></p>
+</body>
+</html>

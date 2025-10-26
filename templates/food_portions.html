@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Food Portion Reference</title>
+  <style>
+    body { background: #eef7ff; font-family: system-ui, sans-serif; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
+    th { background: #f7f7f7; position: sticky; top: 0; }
+    #q { margin: 8px 0; padding: 6px; width: 280px; }
+  </style>
+  <script>
+    function filterTable() {
+      const q = document.getElementById('q').value.toLowerCase();
+      const rows = document.querySelectorAll('tbody tr');
+      rows.forEach(tr => {
+        tr.style.display = tr.innerText.toLowerCase().includes(q) ? '' : 'none';
+      });
+    }
+  </script>
+</head>
+<body>
+    <nav style="background-color: #00796b; padding: 10px;">
+      <a href="{{ url_for('coach.assistant') }}" style="color: white; margin-right: 20px; text-decoration: none;">🏠 Assistant Home</a>
+      <a href="{{ url_for('search.index') }}" style="color: white; margin-right: 20px; text-decoration: none;">🔍 Search USDA</a>
+      <a href="{{ url_for('app_daily') }}" style="color: white; margin-right: 20px; text-decoration: none;">🧾 My Daily Food Log</a>
+      <a href="{{ url_for('recipes.recipes') }}" style="color: white; margin-right: 20px; text-decoration: none;">🍲 Recipes</a>
+      <a href="{{ url_for('food_portions') }}" style="color: white;">📏 Food Portion Reference</a>
+      &nbsp;|&nbsp;
+      <a href="{{ url_for('food_portions', all=1) }}"style="color: white;">Show All</a>
+      <a href="#" style="color: white; text-decoration: none;">⚙️ Settings</a>
+    </nav>
+  <h1>Food Portion Reference</h1>
+  <p><input id="q" oninput="filterTable()" placeholder="Filter..."> (filters all columns)</p>
+  {% if data and data|length %}
+  <table>
+    <thead>
+      <tr>
+        {% for c in columns %}<th>{{ c }}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in data %}
+      <tr>
+        {% for c in columns %}<td>{{ r[c] }}</td>{% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>No portion rows found for your current “My Food List”, or <code>data/food_portion.csv</code> not found.</p>
+  {% endif %}
+</body>
+</html>

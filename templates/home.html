@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Welcome — Nutrition Tracker{% endblock %}
+{% block content %}
+<section class="hero py-5">
+  <div class="container">
+    <div class="row align-items-center g-4">
+      <div class="col-lg-6">
+        <span class="badge bg-light text-dark mb-3">Designed for CKD & High Blood Pressure</span>
+        <h1 class="display-5 fw-semibold mb-3">Track nutrients with calm clarity.</h1>
+        <p class="lead text-secondary">
+          Fast daily logging for sodium, potassium, protein, and calories—so you and your care team can focus on progress.
+        </p>
+        <div class="d-flex gap-2 mt-3">
+          <a href="{{ url_for('app_daily') }}" class="btn btn-primary btn-lg">
+            <i class="bi bi-plus-circle me-1"></i> Log today’s food
+          </a>
+          <a href="/reports" class="btn btn-outline-secondary btn-lg">
+            <i class="bi bi-graph-up me-1"></i> See my trends
+          </a>
+        </div>
+        <div class="small text-muted mt-3">
+          Private by default • Export anytime • Clinician-friendly summaries
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="soft-card p-4 bg-white">
+          <div class="row g-3">
+            <div class="col-6">
+              <div class="soft-card p-3 bg-light">
+                <div class="text-muted small">Sodium today</div>
+                <div class="h3 mb-1">{{ (home_totals.sodium or 0)|int }} mg</div>
+                <div class="meter"><div style="width: {{ home_totals.sodium_pct or 0 }}%; background:var(--brand);"></div></div>
+                <div class="small text-muted mt-1">{{ (home_totals.sodium_remaining or 0)|int }} mg remaining</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="soft-card p-3 bg-light">
+                <div class="text-muted small">Potassium</div>
+                <div class="h3 mb-1">{{ (home_totals.potassium or 0)|int }} mg</div>
+                <div class="meter"><div style="width: {{ home_totals.potassium_pct or 0 }}%; background:var(--brand-soft);"></div></div>
+                <div class="small text-muted mt-1">{{ (home_totals.potassium_remaining or 0)|int }} mg remaining</div>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <div class="soft-card p-3 bg-light">
+                <div class="text-muted small mb-1">Quick add</div>
+                <div class="d-flex gap-2 flex-wrap">
+                  {% for name in (home_usuals or []) %}
+                    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('app_daily') }}?add_usual={{ name|urlencode }}">+ {{ name }}</a>
+                  {% else %}
+                    <span class="text-muted small">No saved usuals yet. Create one from the Daily Log.</span>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <a class="btn btn-success w-100" href="{{ url_for('app_daily') }}">
+                <i class="bi bi-pencil-square me-1"></i> Open Daily Log
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="my-5">
+
+    <div class="row g-4">
+      <div class="col-md-4">
+        <div class="soft-card p-4 bg-white h-100">
+          <i class="bi bi-activity fs-3 text-primary"></i>
+          <h3 class="h6 mt-2">Targets that make sense</h3>
+          <p class="text-secondary mb-0">Keep focus on the nutrients that matter for CKD/HTN without overwhelm.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="soft-card p-4 bg-white h-100">
+          <i class="bi bi-heart fs-3 text-danger"></i>
+          <h3 class="h6 mt-2">Gentle by design</h3>
+          <p class="text-secondary mb-0">Calm colors, larger inputs, and clear units reduce friction and stress.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="soft-card p-4 bg-white h-100">
+          <i class="bi bi-shield-check fs-3 text-success"></i>
+          <h3 class="h6 mt-2">Your data, your control</h3>
+          <p class="text-secondary mb-0">Simple exports for your clinician. You decide what to share.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+{% endblock %}

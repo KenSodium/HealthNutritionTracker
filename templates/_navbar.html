@@ -1,0 +1,23 @@
+{% set is_auth = session.get('user_id') or session.get('authenticated') %}
+<nav class="navbar navbar-expand-lg navbar-light bg-white">
+  <div class="container">
+    <a class="navbar-brand" href="/">Nutrition Tracker</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div id="nav" class="collapse navbar-collapse">
+      <ul class="navbar-nav ms-auto">
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Learn</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="#features">Features</a></li>
+            <li><a class="dropdown-item" href="#how">How it works</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="/signup">Start free</a></li>
+          </ul>
+        </li>
+        <li class="nav-item"><a class="nav-link" href="/login">Sign in</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>

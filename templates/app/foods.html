@@ -1,0 +1,138 @@
+{# templates/app/foods.html #}
+{% extends "app_base.html" %}
+{% block title %}Food List — Nutrition Tracker{% endblock %}
+
+{% block content %}
+  <div class="page-wrapper">
+    <div class="container-xl">
+
+      <!-- Header -->
+      <div class="page-header d-print-none">
+        <div class="row align-items-center">
+          <div class="col">
+            <h2 class="page-title">Food List</h2>
+            <div class="text-muted mt-1">Create and edit your personal foods.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Editor as a single "spreadsheet" row -->
+      <div class="card mb-3">
+        <div class="card-header">
+          <div class="d-flex gap-2 align-items-center">
+            <button class="btn btn-primary btn-create-lg" id="btn-create">Create</button>
+            <button class="btn btn-primary btn-save-lg" id="btn-save">Save</button>
+          </div>
+        </div>
+
+        <div class="card-body p-0">
+          <!-- hidden id for edit/rename support -->
+          <input type="hidden" id="food-id">
+
+          <div class="table-responsive">
+            <table class="table table-sm table-vcenter mb-0">
+              <thead>
+                <tr>
+                  <th style="min-width:220px">Food</th>
+                  <th class="text-end">Calories</th>
+                  <th class="text-end">Protein (g)</th>
+                  <th class="text-end">Carbs (g)</th>
+                  <th class="text-end">Fat (g)</th>
+                  <th class="text-end">Sat Fat (g)</th>
+                  <th class="text-end">Mono Fat (g)</th>
+                  <th class="text-end">Poly Fat (g)</th>
+                  <th class="text-end">Sugar (g)</th>
+                  <th class="text-end">Sodium (mg)</th>
+                  <th class="text-end">Potassium (mg)</th>
+                  <th class="text-end">Calcium (mg)</th>
+                  <th class="text-end">Magnesium (mg)</th>
+                  <th class="text-end">Iron (mg)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+
+                  <!-- Food name -->
+                  <td>
+                    <input type="hidden" id="food-id">
+                    <input id="food-name" class="form-control form-control-sm" placeholder="e.g., Whole wheat bread">
+                  </td>
+
+                  <!-- 13 nutrient inputs (ids MUST match exactly) -->
+                  <td><input id="n-Calorie"   type="number" step="0.1" class="form-control form-control-sm text-end"></td>
+                  <td><input id="n-Protein"   type="number" step="0.1" class="form-control form-control-sm text-end"></td>
+                  <td><input id="n-Carbs"     type="number" step="0.1" class="form-control form-control-sm text-end"></td>
+                  <td><input id="n-Fat"       type="number" step="0.1" class="form-control form-control-sm text-end"></td>
+                  <td><input id="n-Sat Fat"   type="number" step="0.1" class="form-control form-control-sm text-end"></td>
+                  <td><input id="n-Mono Fat"  type="number" step="0.1" class="form-control form-control-sm text-end"></td>
+                  <td><input id="n-Poly Fat"  type="number" step="0.1" class="form-control form-control-sm text-end"></td>
+                  <td><input id="n-Sugar"     type="number" step="0.1" class="form-control form-control-sm text-end"></td>
+                  <td><input id="n-Sodium"    type="number" step="0.1" class="form-control form-control-sm text-end"></td>
+                  <td><input id="n-Potassium" type="number" step="0.1" class="form-control form-control-sm text-end"></td>
+                  <td><input id="n-Calcium"   type="number" step="0.1" class="form-control form-control-sm text-end"></td>
+                  <td><input id="n-Magnesium" type="number" step="0.1" class="form-control form-control-sm text-end"></td>
+                  <td><input id="n-Iron"      type="number" step="0.1" class="form-control form-control-sm text-end"></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="text-muted small px-3 py-2">
+            Enter per-serving values. (We’ll add serving size handling in the next pass.)
+          </div>
+        </div>
+      </div>
+
+      <!-- My Foods table (same column order) -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">My Foods</h3>
+          <div class="ms-auto" style="max-width:260px">
+            <input id="foods-filter" class="form-control" placeholder="Find a food…">
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm table-vcenter card-table mb-0">
+            <thead>
+              <tr>
+                <th style="min-width:220px">Food</th>
+                <th class="text-end">Calories</th>
+                <th class="text-end">Protein (g)</th>
+                <th class="text-end">Carbs (g)</th>
+                <th class="text-end">Fat (g)</th>
+                <th class="text-end">Sat Fat (g)</th>
+                <th class="text-end">Mono Fat (g)</th>
+                <th class="text-end">Poly Fat (g)</th>
+                <th class="text-end">Sugar (g)</th>
+                <th class="text-end">Sodium (mg)</th>
+                <th class="text-end">Potassium (mg)</th>
+                <th class="text-end">Calcium (mg)</th>
+                <th class="text-end">Magnesium (mg)</th>
+                <th class="text-end">Iron (mg)</th>
+                <th class="text-end" style="width:80px"></th>
+              </tr>
+            </thead>
+            <tbody id="foods-body"><!-- filled by JS --></tbody>
+          </table>
+        </div>
+        <div class="card-footer text-muted small">
+          Click <strong>Edit</strong> to load the values above.
+        </div>
+      </div>
+
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script>
+    window.__FOODS_BOOT__ = {
+      myFoods: {{ (session.get('my_food_list') or []) | tojson }},
+      saveUrl: "{{ url_for('api_foods_save') }}"
+    };
+  </script>
+
+  <!-- Load the JS exactly once, with a version so the browser fetches the latest -->
+  <script src="{{ url_for('static', filename='app/foods.js') }}?v=9"></script>
+{% endblock %}
+

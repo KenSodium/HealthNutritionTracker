@@ -1,0 +1,29 @@
+{
+  "defaults": {
+    "cup": { "water_like": 240.0 },
+    "tbsp": { "water_like": 15.0 },
+    "tsp": { "water_like": 5.0 }
+  },
+  "items": [
+    { "pattern": "\\bgarlic\\b",
+      "units": { "clove": 3.0, "whole": 3.0, "tbsp": 8.5, "tsp": 2.8 } },
+
+    { "pattern": "\\btomato,?\\s*roma\\b|\\broma\\s+tomato\\b",
+      "units": { "whole": 62.0, "cup": 180.0 } },
+
+    { "pattern": "\\btomato\\b",
+      "units": { "whole": 123.0, "cup": 180.0 } },
+
+    { "pattern": "\\bonion\\b",
+      "units": { "whole": 110.0, "cup": 160.0 } },
+
+    { "pattern": "\\bchicken\\s+(stock|broth)\\b",
+      "units": { "cup": 240.0, "tbsp": 15.0, "tsp": 5.0 } },
+
+    { "pattern": "\\bsoy\\s+sauce\\b",
+      "units": { "tbsp": 16.0, "tsp": 5.3 } },
+
+    { "pattern": "\\bbutter\\b",
+      "units": { "tbsp": 14.2, "tsp": 4.7 } }
+  ]
+}

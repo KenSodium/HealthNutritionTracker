@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Assistant Options</title>
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  >
+  <style>
+    body {
+      padding: 2rem;
+      background-color: #f8f9fa;
+    }
+    .card {
+      padding: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+<!-- Navigation Bar -->
+<nav style="background-color: #00796b; padding: 10px;">
+  <a href="{{ url_for('coach.assistant') }}" style="color: white; margin-right: 20px; text-decoration: none;">🏠 Assistant Home</a>
+  <a href="{{ url_for('search.index') }}" style="color: white; margin-right: 20px; text-decoration: none;">🔍 Search USDA</a>
+  <a href="{{ url_for('app_daily') }}" style="color: white; margin-right: 20px; text-decoration: none;">🧾 My Daily Food Log</a>
+  <a href="{{ url_for('recipes.recipes') }}" style="color: white; margin-right: 20px; text-decoration: none;">🍲 Recipes</a>
+  <a href="{{ url_for('food_portions') }}" style="color: white;">📏 Food Portion Reference</a>
+  &nbsp;|&nbsp;
+  <a href="{{ url_for('food_portions', all=1) }}"style="color: white;">Show All</a>
+  <a href="#" style="color: white; text-decoration: none;">⚙️ Settings</a>
+</nav>
+
+  <div class="container">
+    <h1 class="mb-4">🧭 Assistant Options</h1>
+    <div class="card">
+      <form method="post" action="{{ url_for('coach.assistant') }}">
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="choice" value="usda" id="usdaChoice" checked>
+          <label class="form-check-label" for="usdaChoice">
+            🔍 Query USDA Food Database
+          </label>
+        </div>
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="radio" name="choice" value="sodium" id="sodiumChoice">
+          <label class="form-check-label" for="sodiumChoice">
+            💬 Talk to Sodium Coach
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary">Continue</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

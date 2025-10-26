@@ -1,0 +1,137 @@
+{# templates/app/dashboard.html #}
+{% extends "app_base.html" %}
+
+{% block content %}
+
+
+  <div class="page-wrapper">
+    <div class="container-xl">
+
+      <!-- Header / CTA -->
+      <div class="page-header d-print-none">
+        <div class="row align-items-center">
+          <div class="col">
+            <h2 class="page-title">Dashboard</h2>
+            <div class="text-muted mt-1">Your recent intake at a glance</div>
+          </div>
+          <div class="col-auto ms-auto d-print-none">
+            <a href="{{ url_for('app_daily') }}" class="btn btn-primary">
+              Start today’s diary
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI cards -->
+      <div class="row row-deck row-cards mt-2">
+        <div class="col-sm-6 col-lg-3">
+          <div class="card">
+            <div class="card-body">
+              <div class="subheader">Sodium (mg) today</div>
+              <div class="h1 mb-0">{{ today.sodium }}</div>
+              <div class="text-muted">Goal: ~1500 mg</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="card">
+            <div class="card-body">
+              <div class="subheader">Potassium (mg) today</div>
+              <div class="h1 mb-0">{{ today.potassium }}</div>
+              <div class="text-muted">Goal: as advised</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="card">
+            <div class="card-body">
+              <div class="subheader">Calories today</div>
+              <div class="h1 mb-0">{{ today.calories }}</div>
+              <div class="text-muted">FYI</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="card">
+            <div class="card-body">
+              <div class="subheader">Last 7 days</div>
+              <div class="h1 mb-0">{{ recent_days|length }}</div>
+              <div class="text-muted">days tracked</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chart + Recent table -->
+      <div class="row row-cards mt-2">
+        <div class="col-lg-7">
+          <div class="card">
+            <div class="card-header"><h3 class="card-title">Sodium trend (last 5 days)</h3></div>
+            <div class="card-body">
+              <div id="chart-sodium" style="height: 260px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-5">
+          <div class="card">
+            <div class="card-header"><h3 class="card-title">Recent days</h3></div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-vcenter card-table mb-0">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th class="text-end">Na (mg)</th>
+                      <th class="text-end">K (mg)</th>
+                      <th class="text-end">Cal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for d in recent_days %}
+                    <tr>
+                      <td>
+                        <a href="{{ url_for('app_daily') }}?date={{ d.date }}">{{ d.date }}</a>
+                      </td>
+                      <td class="text-end">{{ d.sodium }}</td>
+                      <td class="text-end">{{ d.potassium }}</td>
+                      <td class="text-end">{{ d.calories }}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card-footer text-end">
+              <a href="{{ url_for('reports_day') }}" class="btn btn-outline">View full report</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div> <!-- /container-xl -->
+  </div> <!-- /page-wrapper -->
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <!-- ApexCharts CDN (used by Tabler for charts) -->
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <script>
+    // Data from Jinja → JS
+    const recent = {{ recent_days|tojson }};
+    const dates = recent.map(r => r.date);
+    const sodium = recent.map(r => r.sodium);
+
+    const options = {
+      chart: { type: 'line', height: 260, toolbar: { show:false } },
+      series: [{ name: 'Sodium (mg)', data: sodium }],
+      xaxis: { categories: dates, labels: { rotate: -45 } },
+      stroke: { width: 3 },
+      markers: { size: 3 },
+      yaxis: { labels: { formatter: v => Math.round(v) } },
+      grid: { borderColor: 'rgba(0,0,0,.05)' }
+    };
+    new ApexCharts(document.querySelector("#chart-sodium"), options).render();
+  </script>
+{% endblock %}

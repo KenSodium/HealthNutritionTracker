@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Daily Records History</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background:#f7fbff; }
+    .table-sm td, .table-sm th { padding:.5rem .6rem; }
+    th.sticky { position: sticky; left: 0; background: #f8f9fa; z-index: 2; }
+    td.sticky { position: sticky; left: 0; background: #fff; }
+  </style>
+</head>
+<body class="p-3">
+
+  <nav class="mb-3 p-2 rounded bg-dark text-white d-flex align-items-center">
+    <a class="text-white me-3 text-decoration-none" href="{{ url_for('home') }}">🏠 Home</a>
+    <a class="text-white me-3 text-decoration-none" href="{{ url_for('app_daily') }}">🧾 Daily</a>
+    <a class="text-white me-3 text-decoration-none" href="{{ url_for('search.index') }}">🔍 Search</a>
+    <span class="ms-auto">📒 Daily Records History</span>
+  </nav>
+
+  <div class="container-xxl">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+      <h1 class="mb-0">Daily Records History</h1>
+      <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('reports.history_csv') }}">Download CSV (All Days)</a>
+        <a class="btn btn-primary btn-sm" href="{{ url_for('reports.weekly_preview') }}">Weekly Preview (Clinician)</a>
+      </div>
+    </div>
+
+    {% if not days %}
+      <div class="alert alert-info">No saved days yet. Go to <a href="{{ url_for('app_daily') }}">Daily</a>, fill portions, then click <em>I’m Done — Save Day</em>.</div>
+    {% else %}
+      <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle">
+          <thead class="table-light">
+            <tr>
+              <th class="sticky">Date</th>
+              <th class="text-end">Sodium (mg)</th>
+              <th class="text-end">Potassium (mg)</th>
+              <th class="text-end">Protein (g)</th>
+              <th class="text-end">Calories</th>
+              <th class="text-end">Carbs (g)</th>
+              <th class="text-end">Fat (g)</th>
+              <th class="text-end">Sat Fat (g)</th>
+              <th class="text-end">Mono Fat (g)</th>
+              <th class="text-end">Poly Fat (g)</th>
+              <th class="text-end">Sugar (g)</th>
+              <th class="text-end">Calcium (mg)</th>
+              <th class="text-end">Magnesium (mg)</th>
+              <th class="text-end">Iron (mg)</th>
+              <th style="width:1%"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in days %}
+              <tr>
+                <td class="sticky"><strong>{{ d.date }}</strong></td>
+                <td class="text-end">{{ (d.totals.get('Sodium',0))|round(0) }}</td>
+                <td class="text-end">{{ (d.totals.get('Potassium',0))|round(0) }}</td>
+                <td class="text-end">{{ (d.totals.get('Protein',0))|round(1) }}</td>
+                <td class="text-end">{{ (d.totals.get('Calories',0))|round(0) }}</td>
+                <td class="text-end">{{ (d.totals.get('Carbs',0))|round(1) }}</td>
+                <td class="text-end">{{ (d.totals.get('Fat',0))|round(1) }}</td>
+                <td class="text-end">{{ (d.totals.get('Sat Fat',0))|round(2) }}</td>
+                <td class="text-end">{{ (d.totals.get('Mono Fat',0))|round(2) }}</td>
+                <td class="text-end">{{ (d.totals.get('Poly Fat',0))|round(2) }}</td>
+                <td class="text-end">{{ (d.totals.get('Sugar',0))|round(1) }}</td>
+                <td class="text-end">{{ (d.totals.get('Calcium',0))|round(0) }}</td>
+                <td class="text-end">{{ (d.totals.get('Magnesium',0))|round(0) }}</td>
+                <td class="text-end">{{ (d.totals.get('Iron',0))|round(1) }}</td>
+                <td class="text-end">
+                  <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('reports.history_csv', date=d.date) }}">CSV</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+
+</body>
+</html>

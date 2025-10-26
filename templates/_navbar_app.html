@@ -1,0 +1,72 @@
+{# templates/_navbar_app.html #}
+<nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom">
+  <div class="container-xl">
+    <a class="navbar-brand" href="{{ url_for('app_dashboard') }}">Nutrition Tracker</a>
+
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#appNav"
+            aria-controls="appNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div id="appNav" class="collapse navbar-collapse">
+      <ul class="navbar-nav me-auto">
+
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('app_dashboard') }}">Dashboard</a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('app_daily') }}">Daily Diary</a>
+        </li>
+
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Food List</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{{ url_for('food_search') }}">Lookup in USDA</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('manual.form') }}">Enter from package</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url_for('food_search') }}">Manage entries</a></li>
+          </ul>
+        </li>
+
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Reports</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{{ url_for('reports_day') }}">Day / History</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('reports.weekly_preview') }}">Weekly preview</a></li>
+          </ul>
+        </li>
+
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Help</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{{ url_for('how_to') }}">How to use</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('about') }}">About</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('subscribe') }}">Pricing / Subscribe</a></li>
+          </ul>
+        </li>
+
+      </ul>
+
+      <ul class="navbar-nav">
+        {% if session.get('user') %}
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" data-bs-toggle="dropdown">
+              <span class="avatar avatar-sm me-2">👤</span>
+              {{ session.user.name or 'Account' }}
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="{{ url_for('app_dashboard') }}">My dashboard</a></li>
+              <li><a class="dropdown-item" href="#">Settings (soon)</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="{{ url_for('logout') }}">Log out</a></li>
+            </ul>
+          </li>
+        {% else %}
+          <li class="nav-item me-2"><a class="btn btn-outline-secondary" href="{{ url_for('login') }}">Log in</a></li>
+          <li class="nav-item"><a class="btn btn-primary" href="{{ url_for('signup') }}">Start free</a></li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>

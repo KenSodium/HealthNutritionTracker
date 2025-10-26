@@ -1,0 +1,152 @@
+{# templates/app_base.html #}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>{% block title %}App — Nutrition Tracker{% endblock %}</title>
+
+  <!-- Font (used by Preferences when selecting Inter) -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tabler CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler.min.css">
+
+  <!-- Your app-wide CSS (only once) -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+
+  {# Using the marketing navbar app-wide, per your choice #}
+  {% include "_navbar_marketing.html" %}
+
+  {% block content %}{% endblock %}
+
+  <!-- Preferences Modal (must be inside <body>) -->
+  <div class="modal fade" id="prefsModal" tabindex="-1" aria-labelledby="prefsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="prefsModalLabel">Preferences</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Background color</label>
+            <input type="color" class="form-control form-control-color" id="pref-bg" value="#f7fbff" title="Choose background">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Base font size</label>
+            <select class="form-select" id="pref-fontsize">
+              <option value="16px">Default (16px)</option>
+              <option value="17px">17px</option>
+              <option value="18px">18px</option>
+              <option value="19px">19px</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Font family</label>
+            <select class="form-select" id="pref-fontfamily">
+              <option value="system">System UI</option>
+              <option value="inter">Inter (clean, sans-serif)</option>
+            </select>
+          </div>
+
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="pref-contrast">
+            <label class="form-check-label" for="pref-contrast">High contrast text</label>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" id="btn-prefs-reset" class="btn btn-outline-secondary">Reset to defaults</button>
+          <button type="button" id="btn-prefs-save" class="btn btn-primary">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabler JS (includes Bootstrap helpers/modals) -->
+  <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/js/tabler.min.js"></script>
+
+  <!-- Preferences script -->
+  <script>
+  (function(){
+    const KEY = 'nt_prefs_v1';
+    const defaults = { bg:'#f7fbff', fontSize:'16px', fontFamily:'system', contrast:false };
+
+    const elBg    = document.getElementById('pref-bg');
+    const elSize  = document.getElementById('pref-fontsize');
+    const elFam   = document.getElementById('pref-fontfamily');
+    const elContr = document.getElementById('pref-contrast');
+    const btnSave = document.getElementById('btn-prefs-save');
+    const btnRes  = document.getElementById('btn-prefs-reset');
+
+    function apply(p){
+      const root = document.documentElement;
+      root.style.setProperty('--soft-bg', p.bg || defaults.bg);
+      document.documentElement.style.fontSize = p.fontSize || defaults.fontSize;
+
+      const isInter = (p.fontFamily === 'inter');
+      const family = isInter
+        ? '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif'
+        : 'system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
+      document.body.style.setProperty('--font-family', family);
+      document.body.style.fontFamily = family;
+
+      document.body.classList.toggle('pref-contrast', !!p.contrast);
+    }
+
+    function load(){
+      try { const raw = localStorage.getItem(KEY); return raw ? JSON.parse(raw) : { ...defaults }; }
+      catch { return { ...defaults }; }
+    }
+
+    function fill(p){
+      elBg.value       = p.bg || defaults.bg;
+      elSize.value     = p.fontSize || defaults.fontSize;
+      elFam.value      = p.fontFamily || defaults.fontFamily;
+      elContr.checked  = !!p.contrast;
+    }
+
+    function save(){
+      const prefs = {
+        bg: elBg.value,
+        fontSize: elSize.value,
+        fontFamily: elFam.value,
+        contrast: elContr.checked
+      };
+      localStorage.setItem(KEY, JSON.stringify(prefs));
+      apply(prefs);
+    }
+
+    function reset(){
+      localStorage.setItem(KEY, JSON.stringify(defaults));
+      fill(defaults);
+      apply(defaults);
+    }
+
+    if (btnSave) btnSave.addEventListener('click', () => {
+      save();
+      const modalEl = document.getElementById('prefsModal');
+      if (window.bootstrap && modalEl){
+        const m = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        m.hide();
+      }
+    });
+    if (btnRes) btnRes.addEventListener('click', reset);
+
+    const prefs = load();
+    fill(prefs);
+    apply(prefs);
+  })();
+  </script>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>
