@@ -1042,9 +1042,189 @@ def app_foods_grid():
     return render_template("app/foods_grid.html")
 print(app.url_map)
 
-@app.get("/app/foods/glide")
-def app_foods_glide():
-    return render_template("app/grid_glide.html")
+# --- Grid API (session-backed; safe & additive) --------------------------------
+from flask import jsonify, request
+import datetime as _dt
+
+def _ensure_list():
+    lst = session.get("my_food_list")
+    if not isinstance(lst, list):
+        lst = []
+    session["my_food_list"] = lst
+    return lst
+
+def _find_food(fid: str):
+    for f in _ensure_list():
+        if str(f.get("fdcId")) == str(fid):
+            return f
+    return None
+
+def _nut_bag(food):
+    """Return the per-100g nutrient dict, whatever key name you used ('nutrients' or 'per100')."""
+    return dict(food.get("nutrients") or food.get("per100") or {})
+
+def _as_grid_row(food):
+    n = _nut_bag(food)
+    pref = food.get("pref") or {}
+    return {
+        # ids
+        "id":    food.get("fdcId"),
+        "fdcId": food.get("fdcId"),
+
+        # display name
+        "description": food.get("description", "") or "",
+
+        # serving helpers (show up only if your grid includes these columns)
+        "serving_size":    food.get("servingSize") or "",
+        "serving_units":   food.get("servingSizeUnit") or (pref.get("unit_key") or ""),
+        "serving_weight_g": pref.get("unit_grams"),
+
+        # nutrients expected by your grid columns
+        "Sodium":     float(n.get("Sodium", 0) or 0),
+        "Potassium":  float(n.get("Potassium", 0) or 0),
+        "Protein":    float(n.get("Protein", 0) or 0),
+        "Carbs":      float(n.get("Carbs", 0) or 0),
+        "Fat":        float(n.get("Fat", 0) or 0),
+        "Sat Fat":    float(n.get("Sat Fat", 0) or 0),
+        "Mono Fat":   float(n.get("Mono Fat", 0) or 0),
+        "Poly Fat":   float(n.get("Poly Fat", 0) or 0),
+        "Sugar":      float(n.get("Sugar", 0) or 0),
+        "Calcium":    float(n.get("Calcium", 0) or 0),
+        "Magnesium":  float(n.get("Magnesium", 0) or 0),
+        "Iron":       float(n.get("Iron", 0) or 0),
+        "Calories":   float(n.get("Calories", 0) or 0),
+    }
+
+@app.get("/api/foods/list")
+def api_foods_list():
+    """Return foods from the same session list your app already uses."""
+    q = (request.args.get("q") or "").strip().lower()
+    rows = []
+    for f in _ensure_list():
+        name = (f.get("description") or "").lower()
+        if q and q not in name:
+            continue
+        rows.append(_as_grid_row(f))
+    return jsonify({"total": len(rows), "rows": rows})
+
+@app.post("/api/foods/create")
+def api_foods_create():
+    """Create a new blank row (top of grid)."""
+    from uuid import uuid4
+    data = request.get_json(silent=True) or {}
+    desc = (data.get("description") or "").strip() or "New Food"
+    fid = f"custom:{uuid4().hex[:8]}"
+
+    item = {
+        "fdcId": fid,
+        "description": desc,
+        "brandName": "",
+        "dataType": "Manual",
+        # keep your canonical store under 'nutrients'
+        "nutrients": {
+            "Sodium":0, "Potassium":0, "Phosphorus":0, "Calcium":0, "Magnesium":0,
+            "Protein":0, "Carbs":0, "Fat":0, "Sat Fat":0, "Mono Fat":0, "Poly Fat":0,
+            "Sugar":0, "Iron":0, "Calories":0
+        },
+        # optional serving helpers (compatible with your existing keys)
+        "servingSize": None,
+        "servingSizeUnit": None,
+        "pref": {"unit_key":"g"},
+    }
+    lst = _ensure_list()
+    lst.insert(0, item)  # visually "top"
+    session.modified = True
+    return jsonify({"row": _as_grid_row(item)}), 201
+
+@app.patch("/api/foods/<path:fid>")
+def api_foods_update(fid):
+    """Update a single field coming from a cell edit."""
+    f = _find_food(fid)
+    if not f:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+    data = request.get_json(silent=True) or {}
+    # we expect { "<field>": value } (one field at a time)
+    for field, value in data.items():
+        if field == "description":
+            f["description"] = str(value or "").strip()
+        elif field in ("serving_size", "serving_units", "serving_weight_g"):
+            # map to your stored keys
+            if field == "serving_size":
+                # store on servingSize (grams if you use that), accept empty as None
+                try:
+                    f["servingSize"] = float(value) if str(value).strip() != "" else None
+                except Exception:
+                    f["servingSize"] = None
+            elif field == "serving_units":
+                v = (str(value or "").strip() or None)
+                f["servingSizeUnit"] = v
+                # keep pref.unit_key in sync if present
+                f.setdefault("pref", {})
+                if v:
+                    f["pref"]["unit_key"] = v.lower()
+            elif field == "serving_weight_g":
+                f.setdefault("pref", {})
+                try:
+                    f["pref"]["unit_grams"] = float(value) if str(value).strip() != "" else None
+                except Exception:
+                    f["pref"]["unit_grams"] = None
+        else:
+            # assume nutrient column
+            n = _nut_bag(f)
+            try:
+                n[field] = float(value) if str(value).strip() != "" else 0.0
+            except Exception:
+                n[field] = 0.0
+            # write back to your canonical key
+            f["nutrients"] = n
+
+    session.modified = True
+    return jsonify({"ok": True})
+
+@app.post("/api/foods/bulk_delete")
+def api_foods_bulk_delete():
+    """Delete multiple foods by id."""
+    payload = request.get_json(silent=True) or {}
+    ids = [str(x) for x in (payload.get("ids") or [])]
+    if not ids:
+        return jsonify({"ok": True, "deleted": 0})
+    lst = _ensure_list()
+    before = len(lst)
+    lst[:] = [f for f in lst if str(f.get("fdcId")) not in ids]
+    session.modified = True
+    return jsonify({"ok": True, "deleted": before - len(lst)})
+
+@app.post("/api/diary/bulk_add")
+def api_diary_bulk_add():
+    """
+    Add selected foods to the diary in one go.
+    Body: { "date": "YYYY-MM-DD", "items": [ {"fdcId": "...", "grams": 100}, ... ] }
+    """
+    payload = request.get_json(silent=True) or {}
+    date_iso = payload.get("date") or _dt.date.today().isoformat()
+    items = payload.get("items") or []
+
+    foods = _foods_by_id()  # you already defined this helper elsewhere
+    daymap = get_daymap(date_iso)  # same helper you already use
+
+    added = 0
+    for it in items:
+        fid = str(it.get("fdcId") or "")
+        grams = float(it.get("grams") or 100.0)
+        food = foods.get(fid)
+        if not food:
+            continue
+        n100 = _per100(food.get("nutrients") or food.get("per100"))
+        daymap[fid] = {
+            "grams": grams,
+            "nutrients": _scale(n100, grams),
+            "description": food.get("description") or fid,
+        }
+        added += 1
+
+    session.modified = True
+    return jsonify({"ok": True, "added": added})
+
 
 
 

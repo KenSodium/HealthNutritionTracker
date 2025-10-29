@@ -24,8 +24,20 @@
         </div>
       </div>
 
-      <!-- ===== Top row: Entries (wide) + Totals (narrow) ===== -->
+      <!-- Log Today grid (foods with Ate Today + Grams override) -->
+      <div class="card mb-3">
+        <div class="card-header">
+          <h3 class="card-title mb-0">Log Today</h3>
+          <div class="text-muted small">Enter servings or grams; totals update automatically.</div>
+        </div>
+        <div class="card-body p-0">
+          <div id="daily-grid" style="height:520px;"></div>
+        </div>
+      </div>
+
+      <!-- ===== Existing Top row: Entries (wide) + Totals (narrow) ===== -->
       <div class="row g-3">
+
         <!-- Entries: wide (stops before totals) -->
         <div class="col-12 col-xl-9">
           <div class="card">
@@ -109,6 +121,7 @@
             </div>
           </div>
         </div>
+
       </div> <!-- /row -->
 
     </div> <!-- /container-xl -->
@@ -117,14 +130,21 @@
 
 {% block scripts %}
   {{ super() }}
+
+  <!-- Boot payload -->
   <script>
-    // Boot payload (guard against Undefined)
     window.__DAILY_BOOT__ = {
       date: "{{ date_iso|default('', true) }}",
       myFoods: {{ (my_foods or [])|tojson }},
     };
   </script>
-  <script src="{{ url_for('static', filename='app/daily.js') }}?v=10"></script>
+
+  <!-- Tabulator (needed for the new Log Today grid) -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/tabulator/dist/css/tabulator.min.css') }}">
+  <script src="{{ url_for('static', filename='vendor/tabulator/dist/js/tabulator.min.js') }}"></script>
+
+  <!-- Daily logic (grid + totals refresh). Bump cache param as needed. -->
+  <script src="{{ url_for('static', filename='app/daily.js') }}?v=19"></script>
 
   <!-- Keep the subtitle date in sync with the main label -->
   <script>

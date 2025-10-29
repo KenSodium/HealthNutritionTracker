@@ -1,7 +1,5 @@
 {# templates/_navbar_marketing.html #}
-<nav data-nav="marketing"
-     class="navbar navbar-expand-lg bg-white sticky-top shadow-sm"
-     style="z-index:2000;">
+<nav data-nav="marketing" class="navbar navbar-expand-lg bg-white sticky-top shadow-sm" style="z-index:2000;">
   <div class="container">
     <a class="navbar-brand fw-semibold" href="{{ url_for('home') }}">Nutrition Tracker</a>
 
@@ -13,7 +11,7 @@
     <div id="navTop" class="collapse navbar-collapse">
       <ul class="navbar-nav me-auto">
         <!-- Home -->
-        <li class="nav-item dropdown dropdown-hover-lg">
+        <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Home</a>
           <ul class="dropdown-menu">
             <li><a class="dropdown-item" href="/#goals">Goals</a></li>
@@ -21,10 +19,9 @@
             <li><a class="dropdown-item" href="{{ url_for('about') }}">About</a></li>
           </ul>
         </li>
-        <li class="nav-item"><a class="nav-link" href="/app/foods/grid">Grid Sandbox</a></li>
 
         <!-- File -->
-        <li class="nav-item dropdown dropdown-hover-lg">
+        <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">File</a>
           <ul class="dropdown-menu">
             {% if session.get('user') %}
@@ -55,7 +52,6 @@
             <a class="nav-link" href="{{ url_for('login', next=url_for('app_dashboard')) }}">Dashboard</a>
           {% endif %}
         </li>
-
         <li class="nav-item">
           {% if session.get('user') %}
             <a class="nav-link" href="{{ url_for('app_daily') }}">Daily Diary</a>
@@ -64,16 +60,18 @@
           {% endif %}
         </li>
 
-        <!-- Food List -->
-        <li class="nav-item dropdown dropdown-hover-lg">
+        <!-- Food List (moved Grid link here) -->
+        <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Food List</a>
           <ul class="dropdown-menu">
             {% if session.get('user') %}
               <li><a class="dropdown-item" href="{{ url_for('app_foods') }}">Manage Food List</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('app_foods_grid') }}">Foods Grid (experimental)</a></li>
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item" href="{{ url_for('food_search') }}">Lookup in USDA</a></li>
             {% else %}
               <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('app_foods')) }}">Manage Food List</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('app_foods_grid')) }}">Foods Grid (experimental)</a></li>
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('food_search')) }}">Lookup in USDA</a></li>
             {% endif %}
@@ -81,7 +79,7 @@
         </li>
 
         <!-- Reports -->
-        <li class="nav-item dropdown dropdown-hover-lg">
+        <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Reports</a>
           <ul class="dropdown-menu">
             {% if session.get('user') %}
@@ -97,7 +95,6 @@
         <li class="nav-item"><a class="nav-link" href="{{ url_for('subscribe') }}">Subscribe</a></li>
       </ul>
 
-      <!-- Right-side CTAs -->
       <ul class="navbar-nav">
         {% if session.get('user') %}
           <li class="nav-item me-2">
