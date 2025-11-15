@@ -3,14 +3,11 @@
 
 {% block head_extra %}
 <style>
-  /* Page-specific styles preserved from your original file */
   body { background-color: #e0f7fa; }
   table { border-collapse: collapse; table-layout: auto; width: 100%; }
   th, td { padding: 4px 8px; border: 1px solid #666; word-wrap: break-word; }
   th { white-space: nowrap; }
   .small { font-size: 12px; color: #333; }
-
-  /* Busy overlay */
   #busy {
     display:none; position:fixed; inset:0; background:rgba(255,255,255,0.6);
     z-index: 9999; align-items:center; justify-content:center; font:16px/1.4 sans-serif;
@@ -19,12 +16,10 @@
 </style>
 
 <script>
-  // show spinner on any form submit
   document.addEventListener('submit', function () {
     const busy = document.getElementById('busy');
     if (busy) busy.style.display = 'flex';
   }, true);
-  // hide if page cached/back
   window.addEventListener('pageshow', function () {
     const busy = document.getElementById('busy');
     if (busy) busy.style.display = 'none';
@@ -34,8 +29,6 @@
 
 {% block content %}
 <div id="busy"><div class="box">Working… ⏳</div></div>
-
-<!-- NOTE: Top navbar is now provided by templates/_navbar.html via base.html -->
 
 <h1>Search USDA Foods</h1>
 <p><a href="{{ url_for('coach.assistant') }}">🧭 Assistant Options</a></p>
@@ -87,7 +80,12 @@
 
 {% if results %}
   <h2>Pick Foods To Add to My Food List</h2>
-  <form method="post" action="{{ url_for('search.index') }}">
+
+  <!-- Expose the full results (includes branded fields) -->
+  <script id="usda-results-json" type="application/json">{{ results | tojson }}</script>
+
+  <!-- Adds selected items into the session list ONLY (accumulates across searches) -->
+  <form method="post" action="{{ url_for('search.index') }}" id="form-add-selected">
     <input type="hidden" name="action" value="add">
     <table>
       <tr>
@@ -121,22 +119,34 @@
 
 <hr>
 
-<h2>My Food List</h2>
+<h2>Items Found in USDA</h2>
 <p class="small">
-  Choose how you’ll measure each food. We’ll preview a <strong>1-unit portion</strong> in grams and scale the nutrients accordingly.
-  (For <em>g</em>, we preview 100 g.)
+  Accumulate items across multiple searches here. When ready, click
+  <strong>“Save These Items to the luckysheet database”</strong> to write them into your spreadsheet.
 </p>
 
 <form method="post" action="{{ url_for('search.index') }}">
-  <button type="submit" name="action" value="clear_master">Clear All</button>
-  <button type="submit" name="action" value="remove_master">Remove Checked</button>
+  <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+    <button type="submit" name="action" value="clear_master">Clear All</button>
+    <button type="submit" name="action" value="remove_master">Remove Checked</button>
+    <button type="submit" name="action" value="export_luckysheet">
+      Save These Items to the luckysheet database
+    </button>
+  </div>
 
   <table style="margin-top:8px;">
     <tr>
       <th></th>
       <th>Description</th>
-      <th>Choose Unit</th>
-      <th>Portion (gms)</th>
+
+      <!-- Keep first 5 columns -->
+      <th>Serving Size</th>
+      <th>Serving Unit</th>
+      <th>Household Label</th>
+      <th>Brand Owner</th>
+
+      <!-- New 6th column in place of "Choose Unit" -->
+      <th>Source</th>
 
       <!-- Featured first -->
       <th>Na (mg)</th>
@@ -157,43 +167,40 @@
     </tr>
 
     {% for f in my_food_list %}
-      {% set pref = f.pref or {} %}
-      {% set unit = (pref.unit_key or 'g')|lower %}
+      {# portion_nutrients still come from the server; we just display them #}
       {% set comp = f.computed or {} %}
-      {% set grams = comp.portion_grams or '' %}
       {% set pn = comp.portion_nutrients or {} %}
       <tr>
         <td><input type="checkbox" name="remove_id" value="{{ f.fdcId }}"></td>
         <td>{{ f.description }}</td>
 
+        {# Serving size and unit: 100 g for legacy, label values for branded/others #}
+        {% if f.dataType == 'SR Legacy' %}
+          <td>100</td>
+          <td>g</td>
+        {% else %}
+          <td>{{ f.servingSize or '' }}</td>
+          <td>{{ f.servingSizeUnit or '' }}</td>
+        {% endif %}
+
+        <td>{{ f.householdServingFullText or '' }}</td>
+        <td>{{ f.brandOwner or '' }}</td>
+
         <td>
-          <!-- Per-row mini form to choose the unit -->
-          <form method="post" action="{{ url_for('search.index') }}" style="display:flex; gap:6px; align-items:center;">
-            <input type="hidden" name="action" value="choose_unit">
-            <input type="hidden" name="fid" value="{{ f.fdcId }}">
-            <select name="unit_key">
-              <option value="g"    {% if unit=='g' %}selected{% endif %}>g (preview 100g)</option>
-              <option value="cup"  {% if unit=='cup' %}selected{% endif %}>cup</option>
-              <option value="tbsp" {% if unit=='tbsp' %}selected{% endif %}>tbsp</option>
-              <option value="tsp"  {% if unit=='tsp' %}selected{% endif %}>tsp</option>
-              <option value="clove" {% if unit=='clove' %}selected{% endif %}>clove</option>
-            </select>
-            <!-- Optional grams override:
-            <input name="unit_grams" type="number" step="0.1" min="0" placeholder="grams" style="width:90px">
-            -->
-            <button type="submit">Set</button>
-          </form>
+          {% if f.dataType == 'Branded' %}
+            branded
+          {% elif f.dataType == 'SR Legacy' %}
+            legacy
+          {% else %}
+            {{ f.dataType or '' }}
+          {% endif %}
         </td>
 
-        <td>{{ grams }}</td>
-
-        <!-- Featured -->
         <td>{{ (pn.get('Sodium', 0))|round(0) }}</td>
         <td>{{ (pn.get('Potassium', 0))|round(0) }}</td>
         <td>{{ (pn.get('Protein', 0))|round(2) }}</td>
         <td>{{ (pn.get('Calories', 0))|round(0) }}</td>
 
-        <!-- Rest of the 13-nutrient set -->
         <td>{{ (pn.get('Carbs', 0))|round(2) }}</td>
         <td>{{ (pn.get('Fat', 0))|round(2) }}</td>
         <td>{{ (pn.get('Sat Fat', 0))|round(2) }}</td>
@@ -208,5 +215,7 @@
   </table>
 </form>
 
-<p><a href="{{ url_for('app_daily') }}">→ Go to Daily Log</a></p>
+<p><a href="{{ url_for('luckysheet_page') }}">→ Go to Luckysheet</a></p>
+
+<!-- No client-side Luckysheet append here; export is server-side via action=export_luckysheet -->
 {% endblock %}

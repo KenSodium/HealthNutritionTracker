@@ -40,7 +40,7 @@ def history():
             rec["totals"] = totals
         rows.append({"date": d, "totals": totals, "entries": entries})
     return render_template(
-        "history.html",
+        "app/history.html",
         days=rows,
         all_cols=ALL_HISTORY_NUTRIENTS,
         featured=FEATURED_NUTRIENTS,

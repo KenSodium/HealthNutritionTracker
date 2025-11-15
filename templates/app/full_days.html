@@ -1,0 +1,98 @@
+{# templates/app/full_days.html #}
+{% extends "app_base.html" %}
+{% block title %}Full Daily Records{% endblock %}
+
+{% block head_extra %}
+<style>
+  .full-history .table { font-size:.95rem; white-space:nowrap; }
+  .full-history .table th, .full-history .table td { vertical-align:middle; }
+  .full-history .num { text-align:right; }
+  .full-history .card-header { display:flex; align-items:center; gap:.5rem; }
+  .full-history .muted { color:var(--tblr-secondary,#6c757d); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center my-3">
+  <h2 class="m-0">Full Daily Records</h2>
+  <a class="btn btn-outline" href="{{ url_for('history.api_full_csv') }}">Export CSV</a>
+</div>
+
+<div class="container-xl full-history">
+  <h2 class="my-3">Full Daily Records</h2>
+
+  {% if not days %}
+    <div class="alert alert-info">No full-day records saved yet.</div>
+  {% else %}
+    {% for d in days %}
+      <div class="card mb-3">
+        <div class="card-header">
+          <strong>{{ d.date }}</strong>
+          <span class="muted">— {{ d.entries|length }} item{{ '' if d.entries|length == 1 else 's' }}</span>
+        </div>
+
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Food</th>
+                  <th class="num">Amount</th>
+                  <th class="num">Sodium (mg)</th>
+                  <th class="num">Potassium (mg)</th>
+                  <th class="num">Cholesterol (mg)</th>
+                  <th class="num">Protein (g)</th>
+                  <th class="num">Calories</th>
+                  <th class="num">Carbs (g)</th>
+                  <th class="num">Fat (g)</th>
+                  <th class="num">Sat Fat (g)</th>
+                  <th class="num">Mono Fat (g)</th>
+                  <th class="num">Poly Fat (g)</th>
+                  <th class="num">Sugar (g)</th>
+                  <th class="num">Calcium (mg)</th>
+                  <th class="num">Magnesium (mg)</th>
+                  <th class="num">Iron (mg)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for e in d.entries %}
+                  <tr>
+                    <td>{{ e.food }}</td>
+                    <td class="num">{{ e.amount }}</td>
+
+                    {# mg-style ints #}
+                    <td class="num">{{ "{:,}".format(((e.sodium_mg or 0)|round(0,'floor')|int)) }}</td>
+                    <td class="num">{{ "{:,}".format(((e.potassium_mg or 0)|round(0,'floor')|int)) }}</td>
+                    <td class="num">
+                      {% if e.cholesterol_mg is defined %}
+                        {{ "{:,}".format(((e.cholesterol_mg or 0)|round(0,'floor')|int)) }}
+                      {% else %}
+                        —
+                      {% endif %}
+                    </td>
+
+                    {# g-style one decimal #}
+                    <td class="num">{{ "%.1f"|format(e.protein_g or 0) }}</td>
+                    <td class="num">{{ "{:,}".format(((e.calories_kcal or 0)|round(0,'floor')|int)) }}</td>
+                    <td class="num">{{ "%.1f"|format(e.carbs_g or 0) }}</td>
+                    <td class="num">{{ "%.1f"|format(e.fat_g or 0) }}</td>
+                    <td class="num">{{ "%.1f"|format(e.sat_g or e.get('sat_fat_g', e.get('satfat_g', 0)) or 0) }}</td>
+                    <td class="num">{{ "%.1f"|format(e.mono_g or 0) }}</td>
+                    <td class="num">{{ "%.1f"|format(e.poly_g or 0) }}</td>
+                    <td class="num">{{ "%.1f"|format(e.sugar_g or 0) }}</td>
+
+                    {# remaining mg-style ints #}
+                    <td class="num">{{ "{:,}".format(((e.calcium_mg or 0)|round(0,'floor')|int)) }}</td>
+                    <td class="num">{{ "{:,}".format(((e.magnesium_mg or 0)|round(0,'floor')|int)) }}</td>
+                    <td class="num">{{ "%.1f"|format(e.iron_mg or 0) }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}

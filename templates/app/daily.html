@@ -2,141 +2,859 @@
 {% extends "app_base.html" %}
 {% block title %}Daily Diary — Nutrition Tracker{% endblock %}
 
-{% block content %}
-  <div class="page-wrapper">
-    <div class="container-xl">
+{% block head_extra %}
+<style>
+  /* ---- Tunable knobs ---------------------------------------------------- */
+  :root{
+    /* Right panel (Today card) width */
+    --diary-right: 320px;
 
-      <!-- Header: date controls -->
-      <div class="page-header d-print-none">
-        <div class="row align-items-center">
-          <div class="col">
-            <h2 class="page-title">Daily Diary</h2>
-            <div class="text-muted mt-1">Log what you ate — fast.</div>
-          </div>
-          <div class="col-auto ms-auto d-print-none">
-            <div class="d-flex gap-2 align-items-center">
-              <button class="btn btn-outline" id="btn-prev">←</button>
-              <input class="form-control" type="date" id="day-picker" style="width: 180px;">
-              <button class="btn btn-outline" id="btn-next">→</button>
-              <a class="btn btn-primary" href="{{ url_for('app_daily') }}">Today</a>
-            </div>
+    /* Table column widths (left side) */
+    --col-ate:   210px; /* Ate Today cell (amount + unit select) */
+    --col-na:    100px; /* Na/serv (mg) */
+    --col-napct: 220px; /* Sodium % of 1500 (bar) */
+    --col-k:     110px; /* K/serv (mg) */
+    --col-pro:   110px; /* Protein/serv (g) */
+    --col-cal:   110px; /* Calories/serv */
+  }
+
+  @media (max-width: 1200px){
+    :root{ --diary-right: 280px; }
+  }
+
+  .daily-layout {
+    display: grid;
+    grid-template-columns: 1fr var(--diary-right);
+    gap: 16px;
+  }
+
+  .daily-layout > * { min-width: 0; }
+
+  .table-wrap {
+    border: 1px solid var(--tblr-border-color, #dadde1);
+    border-radius: 8px;
+    overflow: auto;
+    background: var(--tblr-body-bg, #fff);
+  }
+  .table-head {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--tblr-card-bg, #fff);
+    border-bottom: 1px solid var(--tblr-border-color, #dadde1);
+  }
+  .table-body {
+    max-height: 520px;
+    overflow: auto;
+  }
+
+  #foods-table { table-layout: fixed; width: 100%; border-collapse: separate; border-spacing: 0; }
+  #foods-table th, #foods-table td {
+    padding: .5rem .6rem;
+    font-size: 15px;
+    vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #foods-table th { white-space: normal; }
+
+  #foods-table td:first-child, #foods-table th:first-child {
+    white-space: normal;
+  }
+
+  .ate-wrap {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .35rem;
+    align-items: center;
+  }
+  #foods-table input.amount {
+    width: 100%;
+    text-align: right;
+  }
+  .unit-select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .sodbar {
+    position: relative;
+    height: 18px;
+    border-radius: 4px;
+    background: #f1f3f5;
+    overflow: hidden;
+  }
+  .sodbar-fill {
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    width: 0%;
+    background: linear-gradient(90deg, #4dabf7 0%, #74c0fc 60%, #ff6b6b 90%);
+    transition: width 120ms ease-out;
+  }
+
+  .totals-card {
+    border: 1px solid var(--tblr-border-color, #dadde1);
+    border-radius: 8px;
+    background: var(--tblr-body-bg, #fff);
+  }
+  .totals-card .card-header { padding: .75rem 1rem; border-bottom: 1px solid var(--tblr-border-color, #dadde1); }
+  .totals-card .card-body { padding: 12px; }
+
+  .meter { margin-bottom: 14px; }
+  .meter-label { display: flex; justify-content: space-between; align-items: baseline; font-size: 14px; margin-bottom: 6px; }
+  .meter-track { position: relative; height: 18px; border-radius: 5px; background: #f1f3f5; overflow: hidden; }
+  .meter-fill { position: absolute; top: 0; left: 0; bottom: 0; width: 0%; background: #74c0fc; transition: width 140ms ease-out, background-color 140ms ease-out; }
+  .meter-fill.over { background: #ff8787; }
+  .meter-goal { position: absolute; top: 0; bottom: 0; width: 2px; background: #343a40; opacity: .85; transform: translateX(-1px); }
+  .meter-fill-base { position: absolute; top: 0; left: 0; bottom: 0; width: 0%; background: #a5d8ff; pointer-events: none; }
+
+  .date-controls { display:flex; gap:.5rem; align-items:center; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="
+  position: fixed;
+  top: 4px;
+  right: 10px;
+  z-index: 9999;
+  background: yellow;
+  color: black;
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid #000;
+">
+  DAILY v4 — app/daily.html
+</div>
+<div class="page-wrapper">
+  <div class="container-xl">
+    <div class="page-header d-print-none">
+      <div class="row align-items-center">
+        <div class="col">
+          <h2 class="page-title">Daily Diary</h2>
+          <div class="text-muted mt-1">Log what you ate — fast.</div>
+        </div>
+        <div class="col-auto ms-auto d-print-none">
+          <div class="date-controls">
+            <button class="btn btn-outline" id="btn-prev" type="button">←</button>
+            <input class="form-control" type="date" id="day-picker" style="width: 180px;" value="{{ today }}">
+            <button class="btn btn-outline" id="btn-next" type="button">→</button>
+            <a class="btn btn-primary" href="{{ url_for('app_daily') }}">Today</a>
+
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- ===== Top row: Entries (wide) + Totals (narrow) ===== -->
-      <div class="row g-3">
-        <!-- Entries: wide (stops before totals) -->
-        <div class="col-12 col-xl-9">
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <h3 class="card-title mb-0">
-                  Total Nutrients for <span id="day-label"></span>
-                </h3>
-                <div class="text-muted small">
-                  Enter the foods you ate on <span id="day-label-2"></span>
-                </div>
-              </div>
-            </div>
-            <div class="card-body p-0">
-              <div class="table-responsive">
-                <table class="table table-vcenter card-table mb-0">
-                  <thead>
-                    <tr>
-                      <th>Food</th>
-                      <th style="width:110px" class="text-end">Grams</th>
-                      <th class="text-end">Na (mg)</th>
-                      <th class="text-end">K (mg)</th>
-                      <th style="width:60px"></th>
-                    </tr>
-                  </thead>
-                  <tbody id="entries-body"><!-- filled by JS --></tbody>
-                </table>
-              </div>
-            </div>
-            <div class="card-footer text-muted small">
-              Quantities autosave on blur. Remove with 🗑️.
-            </div>
-          </div>
+    <div class="daily-layout">
+      <!-- LEFT: Foods table -->
+      <div class="table-wrap">
+        <div class="table-head">
+          <table class="table card-table mb-0" id="foods-table">
+            <colgroup>
+              <col>
+              <col style="width: var(--col-ate)">
+              <col style="width: var(--col-na)">
+              <col style="width: var(--col-napct)">
+              <col style="width: var(--col-k)">
+              <col style="width: var(--col-pro)">
+              <col style="width: var(--col-cal)">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Food</th>
+                <th>Ate Today</th>
+                <th>Na/serv (mg)</th>
+                <th>Sodium % of 1500</th>
+                <th>K/serv (mg)</th>
+                <th>Protein/serv (g)</th>
+                <th>Calories/serv</th>
+              </tr>
+            </thead>
+          </table>
+        </div>
+        <div class="table-body">
+          <table class="table card-table mb-0" id="foods-body-table">
+            <colgroup>
+              <col>
+              <col style="width: var(--col-ate)">
+              <col style="width: var(--col-na)">
+              <col style="width: var(--col-napct)">
+              <col style="width: var(--col-k)">
+              <col style="width: var(--col-pro)">
+              <col style="width: var(--col-cal)">
+            </colgroup>
+            <tbody id="foods-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RIGHT: Today -->
+      <div class="totals-card">
+        <div class="card-header">
+          <h3 class="card-title mb-0">Today</h3>
+          <div class="text-muted small">Bars scale to 125% of your goal; tick marks show each goal.</div>
         </div>
 
-        <!-- Today’s Totals -->
-        <div class="col-12 col-xl-3">
-          <div class="card">
-            <div class="card-header"><h3 class="card-title">Today’s Totals</h3></div>
-            <div class="card-body" id="totals-panel"><!-- filled by JS --></div>
-            <div class="card-footer">
-              <a class="btn btn-outline w-100" href="{{ url_for('reports_day') }}">View day report</a>
-            </div>
-          </div>
+        <div class="card-body" id="totals-panel"></div>
 
-          <div class="card mt-2">
-            <div class="card-header"><h3 class="card-title">Inspector</h3></div>
-            <div class="card-body text-muted small">
-              Select an entry to see details here (coming soon).
-            </div>
-          </div>
+        <div class="card-body pt-0" id="all-totals-wrap">
+          <button type="button" class="btn btn-success w-100 mb-2" id="btn-save-history">Save to History</button>
+          <hr class="my-2">
+          <div class="fw-semibold mb-2">All nutrients (live totals)</div>
+          <table class="table table-sm mb-0">
+            <tbody id="all-totals-body"></tbody>
+          </table>
         </div>
 
-        <!-- Second row: My Foods full-width -->
-        <div class="col-12">
-          <div class="card">
-            <div class="card-header">
-              <h3 class="card-title">My Foods</h3>
-              <div class="ms-auto d-flex gap-2 align-items-center">
-                <input id="foods-filter" class="form-control" placeholder="Filter my foods…" style="max-width:260px">
-                <a class="btn btn-sm btn-outline" href="{{ url_for('food_search') }}">Manage list →</a>
-              </div>
-            </div>
-            <div class="card-body p-0">
-              <div class="table-responsive">
-                <table class="table table-vcenter card-table mb-0" id="tbl-foods">
-                  <thead>
-                    <tr>
-                      <th data-sort="text">Food</th>
-                      <th class="text-end" data-sort="num">Na (mg/portion)</th>
-                      <th class="text-end" data-sort="num">K (mg/portion)</th>
-                      <th style="width:60px"></th>
-                    </tr>
-                  </thead>
-                  <tbody id="foods-body"><!-- filled by JS --></tbody>
-                </table>
-              </div>
-            </div>
-            <div class="card-footer text-muted small">
-              Tip: click a header to sort.
-            </div>
-          </div>
+        <div class="card-footer d-grid gap-2">
+          <a class="btn btn-outline" href="{{ url_for('reports_day') }}">View day report</a>
         </div>
-      </div> <!-- /row -->
-
-    </div> <!-- /container-xl -->
-  </div> <!-- /page-wrapper -->
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
-  {{ super() }}
-  <script>
-    // Boot payload (guard against Undefined)
-    window.__DAILY_BOOT__ = {
-      date: "{{ date_iso|default('', true) }}",
-      myFoods: {{ (my_foods or [])|tojson }},
-    };
-  </script>
-  <script src="{{ url_for('static', filename='app/daily.js') }}?v=10"></script>
+{{ super() }}
 
-  <!-- Keep the subtitle date in sync with the main label -->
-  <script>
-    (function(){
-      function syncDup(){
-        var a = document.getElementById('day-label');
-        var b = document.getElementById('day-label-2');
-        if (a && b) b.textContent = a.textContent || '';
+<script>
+  // ================= Constants & Setup =================
+  const GOALS = { na: 1500, k: 3400, pro: 70, cal: 1500 };
+  const SCALE = 1.25;
+  const $ = (s, r=document) => r.querySelector(s);
+
+  let FOODS = [];
+  let DATE_ISO = null;
+
+  // Header aliasing (for /api/luckysheet)
+  const LABELS = {
+    food: ["Food","Description","Name"],
+    na:   ["Sodium (mg)","Na (mg)","Sodium"],
+    k:    ["Potassium (mg)","K (mg)","Potassium"],
+    pro:  ["Protein (g)","Protein"],
+    cal:  ["Calories","Energy (kcal)","kcal"],
+    carbs: ["Carbs (g)","Carbohydrates (g)","Carbohydrates"],
+    fat:   ["Fat (g)","Total Fat (g)","Fat"],
+    sat:   ["Sat Fat (g)","Saturated Fat (g)","Saturated Fat"],
+    mono:  ["Mono Fat (g)","Monounsaturated Fat (g)","Monounsaturated Fat"],
+    poly:  ["Poly Fat (g)","Polyunsaturated Fat (g)","Polyunsaturated Fat"],
+    sugar: ["Sugar (g)","Sugars (g)","Total Sugars (g)"],
+    ca:    ["Calcium (mg)","Calcium"],
+    mg:    ["Magnesium (mg)","Magnesium"],
+    iron:  ["Iron (mg)","Iron"],
+    labelUnits: ["Label Units","Units per serving"]
+  };
+  const norm = (s) => String(s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+
+  // ================= Load Foods from Luckysheet API =================
+  async function loadFoodsFromLuckysheet(){
+    const resp = await fetch('/api/luckysheet');
+    if (!resp.ok) throw new Error('Failed to load foods workbook: HTTP ' + resp.status);
+    const wb = await resp.json();
+    const sheets = wb?.data || wb || [];
+    if (!Array.isArray(sheets) || !sheets.length) throw new Error('No sheets');
+
+    const sheet = sheets.find(s => /food/i.test(s?.name||"")) || sheets[0];
+
+    function sheetToGrid(s){
+      if (Array.isArray(s.data) && s.data.length){
+        return s.data.map(row => (row||[]).map(c => c?.v ?? null));
       }
-      window.addEventListener('load', syncDup);
-      var picker = document.getElementById('day-picker');
-      if (picker) picker.addEventListener('change', syncDup);
-    })();
-  </script>
+      if (Array.isArray(s.celldata) && s.celldata.length){
+        let maxR=0,maxC=0;
+        s.celldata.forEach(c => { if(c.r>maxR) maxR=c.r; if(c.c>maxC) maxC=c.c; });
+        const grid = Array.from({length:maxR+1}, () => Array(maxC+1).fill(null));
+        s.celldata.forEach(c => {
+          const v = c.v?.v ?? c.v?.m ?? c.v;
+          grid[c.r][c.c] = v===""?null:v;
+        });
+        return grid;
+      }
+      return [];
+    }
+
+    const grid = sheetToGrid(sheet);
+    if (!grid.length) throw new Error('Empty sheet');
+
+    const want = ["sodium","potassium","protein","calories"];
+    let headerRow = -1, bestScore = -1;
+    for (let r=0; r<Math.min(10,grid.length); r++){
+      const score = (grid[r]||[]).reduce(
+        (a,c) => a + (want.some(w=>norm(c).includes(w))?1:0),
+        0
+      );
+      if (score>bestScore){ bestScore=score; headerRow=r; }
+    }
+    if (headerRow < 0) throw new Error('Headers not found');
+
+    const headers = (grid[headerRow]||[]).map(v => String(v||"").trim());
+    function colIndex(aliases){
+      const H = headers.map(norm);
+      for (const a of aliases){
+        const i = H.indexOf(norm(a));
+        if (i>=0) return i;
+      }
+      return -1;
+    }
+
+    const idxFood   = colIndex(LABELS.food);
+    const idxNa     = colIndex(LABELS.na);
+    const idxK      = colIndex(LABELS.k);
+    const idxPro    = colIndex(LABELS.pro);
+    const idxCal    = colIndex(LABELS.cal);
+    const idxCarbs  = colIndex(LABELS.carbs);
+    const idxFat    = colIndex(LABELS.fat);
+    const idxSat    = colIndex(LABELS.sat);
+    const idxMono   = colIndex(LABELS.mono);
+    const idxPoly   = colIndex(LABELS.poly);
+    const idxSugar  = colIndex(LABELS.sugar);
+    const idxCa     = colIndex(LABELS.ca);
+    const idxMg     = colIndex(LABELS.mg);
+    const idxIron   = colIndex(LABELS.iron);
+    const idxLabelU = colIndex(LABELS.labelUnits);
+
+    if ([idxFood, idxNa, idxK, idxPro, idxCal].some(i => i < 0)) {
+      throw new Error('Required columns not found');
+    }
+
+    const numAt = (row, idx) =>
+      (idx >= 0 && row[idx] != null && row[idx] !== "") ? (Number(row[idx]) || 0) : 0;
+
+    const out = [];
+    for (let r=headerRow+1; r<grid.length; r++){
+      const row = grid[r] || [];
+      const name = row[idxFood];
+      if (!name || !String(name).trim()) continue;
+
+      out.push({
+        food:        String(name).trim(),
+        na:          numAt(row, idxNa),
+        k:           numAt(row, idxK),
+        pro:         numAt(row, idxPro),
+        cal:         numAt(row, idxCal),
+        carbs:       numAt(row, idxCarbs),
+        fat:         numAt(row, idxFat),
+        sat:         numAt(row, idxSat),
+        mono:        numAt(row, idxMono),
+        poly:        numAt(row, idxPoly),
+        sugar:       numAt(row, idxSugar),
+        ca:          numAt(row, idxCa),
+        mg:          numAt(row, idxMg),
+        iron:        numAt(row, idxIron),
+        labelUnits:  numAt(row, idxLabelU) || 1   // <= UNITS PER LABEL SERVING (default 1)
+      });
+    }
+
+    FOODS = out;
+  }
+
+  // ================= Render Foods Table =================
+  function sodiumBarCell(percent){
+    const pct = Math.max(0, Math.min(percent, 100 * SCALE));
+    return `
+      <div class="sodbar" aria-label="Sodium percent of 1500">
+        <div class="sodbar-fill" style="width:${pct}%;"></div>
+      </div>
+    `;
+  }
+
+  function renderFoods(){
+    const tbody = $("#foods-body");
+    tbody.innerHTML = "";
+
+    for (const f of FOODS){
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td title="${f.food}">${f.food}</td>
+        <td>
+          <div class="ate-wrap">
+            <input class="form-control form-control-sm amount" type="number" step="0.25" min="0" value="0">
+            <select class="form-select form-select-sm unit-select">
+              <option value="units" selected># Units</option>
+              <option value="g">Grams</option>
+              <option value="oz">Ounces</option>
+            </select>
+          </div>
+        </td>
+        <!-- Start these displayed values at 0; we keep per-serving in data-* -->
+        <td class="text-end na">0</td>
+        <td class="sodbar-cell">${sodiumBarCell(0)}</td>
+        <td class="text-end k">0</td>
+        <td class="text-end pro">0</td>
+        <td class="text-end cal">0</td>
+      `;
+      // store per-serving values in dataset
+      tr.dataset.na    = f.na ?? 0;
+      tr.dataset.k     = f.k ?? 0;
+      tr.dataset.pro   = f.pro ?? 0;
+      tr.dataset.cal   = f.cal ?? 0;
+      tr.dataset.food  = f.food ?? "";
+
+      tr.dataset.carbs = f.carbs ?? 0;
+      tr.dataset.fat   = f.fat   ?? 0;
+      tr.dataset.sat   = f.sat   ?? 0;
+      tr.dataset.mono  = f.mono  ?? 0;
+      tr.dataset.poly  = f.poly  ?? 0;
+      tr.dataset.sugar = f.sugar ?? 0;
+      tr.dataset.ca    = f.ca    ?? 0;
+      tr.dataset.mg    = f.mg    ?? 0;
+      tr.dataset.iron  = f.iron  ?? 0;
+
+      tr.dataset.labelUnits = f.labelUnits ?? 1;
+
+      const input = tr.querySelector("input.amount");
+      input.addEventListener("change", onAmountChange);
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+      });
+
+      const unitSel = tr.querySelector(".unit-select");
+      unitSel.addEventListener("change", () => {
+        tr.dataset.unit = unitSel.value;
+        updateRowSodiumBar(tr);
+        updateRowNutrientCells(tr);
+        updateTotals();
+
+        const date = (document.querySelector("#day-picker")?.value || DATE_ISO);
+        saveDraftForDate(date);
+      });
+
+
+      tbody.appendChild(tr);
+    }
+  }
+
+  // -------- Helper: effective servings for this row ------------------
+  function effectiveServings(tr){
+    const amt = Number(tr.querySelector("input.amount").value) || 0;
+    const unit = tr.dataset.unit || (tr.querySelector(".unit-select")?.value || "units");
+    const labelUnits = Number(tr.dataset.labelUnits || 0) || 1;
+
+    if (unit === "units") {
+      // amt = number of bars/slices; labelUnits = bars per label serving
+      return amt / labelUnits;
+    }
+    // For now, grams/oz behave like "servings" (same as before).
+    return amt;
+  }
+
+  // ================= Totals Panel =================
+  function ensureTotalsPanel(){
+    const host = $("#totals-panel");
+    if (!host) return;
+    host.innerHTML = "";
+    makeMeter(host, "Sodium", "na", "mg", GOALS.na);
+    makeMeter(host, "Potassium", "k", "mg", GOALS.k);
+    makeMeter(host, "Protein", "pro", "g", GOALS.pro);
+    makeMeter(host, "Calories", "cal", "", GOALS.cal);
+  }
+
+  function makeMeter(host, label, key, unit, goal){
+    const wrap = document.createElement("div");
+    wrap.className = "meter";
+    wrap.innerHTML = `
+      <div class="meter-label">
+        <span>${label}</span>
+        <span id="m-${key}-val">0 ${unit}</span>
+      </div>
+      <div class="meter-track" id="m-${key}-track">
+        <div class="meter-fill-base" id="m-${key}-base" style="width:0%;"></div>
+        <div class="meter-fill" id="m-${key}-fill" style="width:0%;"></div>
+        <div class="meter-goal" id="m-${key}-goal" style="left:0%;"></div>
+      </div>
+      <div class="text-muted small" id="m-${key}-goaltext">Goal: ${goal.toLocaleString()} ${unit}</div>
+    `;
+    host.appendChild(wrap);
+
+    const goalPct = (goal / (goal * SCALE)) * 100;
+    wrap.querySelector(`#m-${key}-goal`).style.left = `${goalPct}%`;
+  }
+
+  // ================= Update on Input =================
+    function onAmountChange(e){
+    const tr = e.target.closest("tr");
+    if (!tr) return;
+    updateRowSodiumBar(tr);
+    updateRowNutrientCells(tr);
+    updateTotals();
+
+    const date = (document.querySelector("#day-picker")?.value || DATE_ISO);
+    saveDraftForDate(date);
+  }
+
+
+  function updateRowSodiumBar(tr){
+    const servings = effectiveServings(tr);
+    const naPer = Number(tr.dataset.na) || 0;
+    const naTotal = servings * naPer;
+    const pct = (naTotal / (GOALS.na * SCALE)) * 100;
+    const fill = tr.querySelector(".sodbar-fill");
+    if (fill) fill.style.width = `${Math.max(0, Math.min(pct, 100))}%`;
+  }
+
+  // NEW: update Na/serv, K/serv, Protein, Calories cells with multiplied amounts
+  function updateRowNutrientCells(tr){
+    const servings = effectiveServings(tr);
+
+    const naVal   = servings * (Number(tr.dataset.na)  || 0);
+    const kVal    = servings * (Number(tr.dataset.k)   || 0);
+    const proVal  = servings * (Number(tr.dataset.pro) || 0);
+    const calVal  = servings * (Number(tr.dataset.cal) || 0);
+
+    const naCell  = tr.querySelector("td.na");
+    const kCell   = tr.querySelector("td.k");
+    const proCell = tr.querySelector("td.pro");
+    const calCell = tr.querySelector("td.cal");
+
+    if (naCell)  naCell.textContent  = Math.round(naVal).toLocaleString();
+    if (kCell)   kCell.textContent   = Math.round(kVal).toLocaleString();
+    if (proCell) proCell.textContent = proVal.toFixed(1).replace(/\.0$/,"");
+    if (calCell) calCell.textContent = Math.round(calVal).toLocaleString();
+  }
+
+  // ================= All math (meters + full list) =================
+  function sumFromTable(){
+    const total = {
+      na:0, k:0, pro:0, cal:0,
+      carbs:0, fat:0, sat:0, mono:0, poly:0, sugar:0,
+      ca:0, mg:0, iron:0
+    };
+    document.querySelectorAll("#foods-body tr").forEach(tr => {
+      const servings = effectiveServings(tr);
+
+      total.na   += servings * (Number(tr.dataset.na)   || 0);
+      total.k    += servings * (Number(tr.dataset.k)    || 0);
+      total.pro  += servings * (Number(tr.dataset.pro)  || 0);
+      total.cal  += servings * (Number(tr.dataset.cal)  || 0);
+
+      total.carbs+= servings * (Number(tr.dataset.carbs)|| 0);
+      total.fat  += servings * (Number(tr.dataset.fat)  || 0);
+      total.sat  += servings * (Number(tr.dataset.sat)  || 0);
+      total.mono += servings * (Number(tr.dataset.mono) || 0);
+      total.poly += servings * (Number(tr.dataset.poly) || 0);
+      total.sugar+= servings * (Number(tr.dataset.sugar)|| 0);
+      total.ca   += servings * (Number(tr.dataset.ca)   || 0);
+      total.mg   += servings * (Number(tr.dataset.mg)   || 0);
+      total.iron += servings * (Number(tr.dataset.iron) || 0);
+    });
+    return total;
+  }
+
+  function paintMeter(key, value, goal, unit){
+    const cap = goal * SCALE;
+    const pct = Math.max(0, Math.min((value / cap) * 100, 100));
+    const fill = document.querySelector(`#m-${key}-fill`);
+    const base = document.querySelector(`#m-${key}-base`);
+    const val  = document.querySelector(`#m-${key}-val`);
+    if (!fill || !val || !base) return;
+
+    const goalPct = (goal / cap) * 100;
+    const basePct = Math.min(pct, goalPct);
+    base.style.width = `${basePct}%`;
+
+    fill.style.width = `${pct}%`;
+    if (value > goal) fill.classList.add("over"); else fill.classList.remove("over");
+
+    const display = unit ? `${Math.round(value).toLocaleString()} ${unit}`
+                         : `${Math.round(value).toLocaleString()}`;
+    val.textContent = `${display} / ${goal.toLocaleString()}${unit ? " "+unit : ""}`;
+  }
+
+  function renderAllTotals(){
+    const t = totalsForHistory();
+    const rows = [
+      ["Sodium (mg)",     t.Sodium ?? 0],
+      ["Potassium (mg)",  t.Potassium ?? 0],
+      ["Protein (g)",     t.Protein ?? 0],
+      ["Calories",        t.Calories ?? 0],
+      ["Carbs (g)",       t.Carbs ?? 0],
+      ["Fat (g)",         t.Fat ?? 0],
+      ["Sat Fat (g)",     t["Sat Fat"] ?? 0],
+      ["Mono Fat (g)",    t["Mono Fat"] ?? 0],
+      ["Poly Fat (g)",    t["Poly Fat"] ?? 0],
+      ["Sugar (g)",       t.Sugar ?? 0],
+      ["Calcium (mg)",    t.Calcium ?? 0],
+      ["Magnesium (mg)",  t.Magnesium ?? 0],
+      ["Iron (mg)",       t.Iron ?? 0]
+    ];
+    const tbody = document.getElementById("all-totals-body");
+    if (!tbody) return;
+    tbody.innerHTML = rows
+      .map(([k,v]) => `<tr><td>${k}</td><td class="text-end">${Number(v||0).toLocaleString()}</td></tr>`)
+      .join("");
+  }
+
+  function updateTotals(){
+    const t = sumFromTable();
+    paintMeter("na",  t.na,  GOALS.na, "mg");
+    paintMeter("k",   t.k,   GOALS.k,  "mg");
+    paintMeter("pro", t.pro, GOALS.pro,"g");
+    paintMeter("cal", t.cal, GOALS.cal,"");
+    renderAllTotals();
+  }
+
+  // ================= Save payload helpers =================
+  function totalsForHistory(){
+    const t = sumFromTable();
+    return {
+      Sodium:     Math.round(t.na),
+      Potassium:  Math.round(t.k),
+      Protein:    +t.pro.toFixed(1),
+      Calories:   Math.round(t.cal),
+
+      Carbs:      +t.carbs.toFixed(1),
+      Fat:        +t.fat.toFixed(1),
+      "Sat Fat":  +t.sat.toFixed(1),
+      "Mono Fat": +t.mono.toFixed(1),
+      "Poly Fat": +t.poly.toFixed(1),
+      Sugar:      +t.sugar.toFixed(1),
+      Calcium:    Math.round(t.ca),
+      Magnesium:  Math.round(t.mg),
+      Iron:       +t.iron.toFixed(1)
+    };
+  }
+
+  function collectEntries(){
+    const rows = [];
+    document.querySelectorAll("#foods-body tr").forEach(tr => {
+      const amt = Number(tr.querySelector("input.amount").value) || 0;
+      if (amt <= 0) return;
+      const servings = effectiveServings(tr);
+      const num = (k) => servings * (Number(tr.dataset[k] || 0));
+      rows.push({
+        food:           tr.dataset.food || "",
+        amount:         amt,
+        unit:           tr.dataset.unit || (tr.querySelector(".unit-select")?.value || "units"),
+        sodium_mg:      num("na"),
+        potassium_mg:   num("k"),
+        protein_g:      num("pro"),
+        calories_kcal:  Math.round(num("cal")),
+        fat_g:          num("fat"),
+        carbs_g:        num("carbs"),
+        sugar_g:        num("sugar"),
+        calcium_mg:     num("ca"),
+        magnesium_mg:   num("mg"),
+        iron_mg:        num("iron"),
+      });
+    });
+    return rows;
+  }
+
+    // ================= Live draft save/load (per date, in localStorage) =================
+  function saveDraftForDate(date){
+    if (!date) return;
+    const rows = [];
+    document.querySelectorAll("#foods-body tr").forEach(tr => {
+      const amtInput = tr.querySelector("input.amount");
+      const unitSel  = tr.querySelector(".unit-select");
+      if (!amtInput || !unitSel) return;
+
+      const food = tr.dataset.food || "";
+      if (!food) return;
+
+      const rawAmt = amtInput.value;
+      const amount = rawAmt === "" ? "" : (Number(rawAmt) || 0);
+      const unit   = tr.dataset.unit || unitSel.value || "units";
+
+      rows.push({ food, amount, unit });
+    });
+
+    const key = "diary-draft-" + date;
+    try {
+      localStorage.setItem(key, JSON.stringify({ date, rows }));
+    } catch (e) {
+      console.warn("Draft save failed", e);
+    }
+  }
+
+  function loadDraftForDate(date){
+    if (!date) return;
+    const key = "diary-draft-" + date;
+    let raw = null;
+
+    try {
+      raw = localStorage.getItem(key);
+    } catch (e) {
+      console.warn("Draft load failed", e);
+      return;
+    }
+
+    // If no draft exists for this date, clear inputs to a clean state
+    if (!raw) {
+      document.querySelectorAll("#foods-body tr").forEach(tr => {
+        const amtInput = tr.querySelector("input.amount");
+        const unitSel  = tr.querySelector(".unit-select");
+        if (amtInput) amtInput.value = "0";
+        if (unitSel) {
+          unitSel.value = "units";
+          tr.dataset.unit = "units";
+        }
+        updateRowSodiumBar(tr);
+        updateRowNutrientCells(tr);
+      });
+      updateTotals();
+      return;
+    }
+
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch (e) {
+      console.warn("Bad draft JSON", e);
+      return;
+    }
+
+    const rowsByFood = {};
+    (data.rows || []).forEach(r => {
+      if (r.food) rowsByFood[r.food] = r;
+    });
+
+    document.querySelectorAll("#foods-body tr").forEach(tr => {
+      const food = tr.dataset.food || "";
+      const rec  = rowsByFood[food];
+
+      const amtInput = tr.querySelector("input.amount");
+      const unitSel  = tr.querySelector(".unit-select");
+      if (!amtInput || !unitSel) return;
+
+      if (rec) {
+        amtInput.value = rec.amount === "" ? "" : (rec.amount ?? 0);
+        unitSel.value  = rec.unit || "units";
+        tr.dataset.unit = unitSel.value;
+      } else {
+        amtInput.value = "0";
+        unitSel.value  = "units";
+        tr.dataset.unit = "units";
+      }
+
+      updateRowSodiumBar(tr);
+      updateRowNutrientCells(tr);
+    });
+
+    updateTotals();
+  }
+
+
+    // ================= Date controls =================
+function parseIsoDate(str) {
+  // Expect "YYYY-MM-DD"
+  if (!str) return null;
+  const parts = str.split("-");
+  if (parts.length !== 3) return null;
+  const [y, m, d] = parts.map(Number);
+  if (!y || !m || !d) return null;
+  // Local-time Date, avoids UTC "YYYY-MM-DD" gotcha
+  return new Date(y, m - 1, d);
+}
+
+function formatIsoDate(date) {
+  const yyyy = date.getFullYear();
+  const mm   = String(date.getMonth() + 1).padStart(2, "0");
+  const dd   = String(date.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+  function initDate(){
+    const picker = document.getElementById("day-picker");
+    const today  = new Date();
+    const yyyy   = today.getFullYear();
+    const mm     = String(today.getMonth()+1).padStart(2,"0");
+    const dd     = String(today.getDate()).padStart(2,"0");
+
+    DATE_ISO = picker?.value || `${yyyy}-${mm}-${dd}`;
+    if (picker && !picker.value) picker.value = DATE_ISO;
+
+    document.getElementById("btn-prev")?.addEventListener("click", () => shiftDate(-1));
+    document.getElementById("btn-next")?.addEventListener("click", () => shiftDate(+1));
+
+    picker?.addEventListener("change", () => {
+      DATE_ISO = picker.value || DATE_ISO;
+      loadDraftForDate(DATE_ISO);
+    });
+  }
+
+  function shiftDate(delta){
+    const picker  = document.getElementById("day-picker");
+    const baseStr = picker?.value || DATE_ISO;
+    const base    = baseStr ? new Date(baseStr) : new Date();
+
+    base.setDate(base.getDate() + delta);
+
+    const yyyy = base.getFullYear();
+    const mm   = String(base.getMonth()+1).padStart(2,"0");
+    const dd   = String(base.getDate()).padStart(2,"0");
+
+    DATE_ISO = `${yyyy}-${mm}-${dd}`;
+    if (picker) picker.value = DATE_ISO;
+
+    loadDraftForDate(DATE_ISO);
+  }
+
+
+  // ================= API wiring =================
+  window.__HISTORY_API__ = Object.assign(window.__HISTORY_API__ || {}, {
+    save: "{{ url_for('history.api_day_save') }}",
+    get:  "{{ url_for('history.api_day_get') }}"
+  });
+
+  async function handleSaveToHistory(ev){
+    ev?.preventDefault?.();
+    const date = (document.querySelector("#day-picker")?.value || "").trim();
+    if (!date) { alert("Pick a date first."); return; }
+
+    if (typeof updateTotals === "function") { try { updateTotals(); } catch(e) {} }
+
+    const payload = { date, totals: totalsForHistory(), entries: collectEntries() };
+    console.log("Saving payload", payload);
+
+    const btn = document.getElementById("btn-save-history");
+    if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
+
+    try{
+      const res = await fetch(window.__HISTORY_API__.save, {
+        method: "POST",
+        headers: { "Content-Type":"application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify(payload)
+      });
+      const js = await res.json().catch(()=> ({}));
+      if (!res.ok || !js.ok) throw new Error(js.error || ("HTTP "+res.status));
+      if (btn) {
+        btn.classList.remove("btn-success");
+        btn.classList.add("btn-secondary");
+        btn.textContent = "Saved";
+      }
+      alert("Saved day " + date);
+    }catch(e){
+      console.error(e);
+      alert("Save failed: " + e.message);
+      if (btn) { btn.disabled = false; btn.textContent = "Save to History"; }
+    }
+  }
+
+    // ================= Boot =================
+    (async function boot(){
+    try{
+      await loadFoodsFromLuckysheet();
+      renderFoods();
+      ensureTotalsPanel();
+    }catch(err){
+      console.error(err);
+      renderFoods();
+      ensureTotalsPanel();
+    }
+
+    initDate();
+    // Load any existing draft for whatever date the picker shows on load
+    loadDraftForDate(DATE_ISO);
+    updateTotals();
+
+    document.getElementById("btn-save-history")?.addEventListener("click", handleSaveToHistory);
+  })();
+
+
+</script>
 {% endblock %}

@@ -1,0 +1,99 @@
+{% extends "app_base.html" %}
+{% block title %}Foods Grid — Transposed (Experimental){% endblock %}
+
+{% block content %}
+  {# Foods sub-navigation #}
+  {% include "app/_nav_foods.html" %}
+
+  <div class="page-wrapper">
+    <div class="container-xl">
+
+      <div class="page-header d-print-none">
+        <div class="row align-items-center">
+          <div class="col">
+            <h2 class="page-title">Experimental Grid (Transposed)</h2>
+            <div class="text-muted mt-1">
+              Rows = Serving &amp; Nutrients • Columns = Foods. Pure front-end experiment using Tabulator.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <style>
+        /* Grid container + general Tabulator tweaks */
+        #tgrid-wrap { position: relative; }
+        #tgrid-wrap .tabulator .tabulator-tableholder { overflow-x: auto !important; }
+        #tgrid-wrap .tabulator .tabulator-col .tabulator-col-title { white-space: normal; line-height: 1.1; }
+        #tgrid-wrap .tabulator { font-variant-numeric: tabular-nums; }
+        #tgrid-wrap .row-divider-top { border-top: 3px solid var(--tblr-border-color,#666); }
+
+        /* Overlay superheaders (vertical “Serving Size” / “Nutrients”) */
+        #superheaders {
+          position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+          pointer-events: none; /* do not block grid interaction */
+          z-index: 5; /* ensure it paints above the grid cells */
+        }
+        .superlabel {
+          position: absolute; font-weight: 600; color: #666; opacity: .9;
+        }
+        .superlabel.vertical {
+          writing-mode: vertical-rl; transform: rotate(180deg);
+          background: linear-gradient(to right, transparent, transparent 6px, rgba(0,0,0,.06) 6px, transparent 7px);
+          padding-left: 10px; padding-right: 4px;
+        }
+      </style>
+
+      <div class="card">
+        <div class="card-body p-0">
+          <!-- TOP TOOLBAR -->
+          <div class="p-3 d-flex flex-wrap gap-3 align-items-center border-bottom">
+            <div class="d-flex align-items-center gap-2">
+              <button id="btn-add-food" class="btn btn-outline">Insert Food (column)</button>
+
+              <!-- Remove the dropdown and use checkboxes above each column -->
+              <div class="p-3">
+                <label class="form-check-label" for="select-column">Select column(s) to delete</label>
+                <div id="food-column-checkboxes">
+                  <!-- Checkboxes will be dynamically generated here -->
+                </div>
+              </div>
+
+              <button id="btn-del-food" class="btn btn-outline text-danger">Delete Food</button>
+            </div>
+
+            <div class="vr mx-2"></div>
+            <button id="btn-switch" class="btn btn-outline" onclick="location.href='{{ url_for('app_foods_grid') }}'">Switch to Normal Grid</button>
+            <div class="vr mx-2"></div>
+            <button id="btn-export" class="btn btn-outline">Export CSV</button>
+
+            <div class="vr mx-2"></div>
+            <input id="metric-search" class="form-control" placeholder="Filter rows (e.g., Sodium, Protein…)" style="max-width:260px">
+            <button id="btn-clear-search" class="btn btn-outline">✕</button>
+
+            <div class="vr mx-2"></div>
+            <label for="colw" class="form-label mb-0">Food Column Width</label>
+            <input id="colw" type="range" min="90" max="220" step="5" value="130" />
+            <span id="colw-val" class="text-muted small">130px</span>
+          </div>
+
+          <!-- GRID -->
+          <div id="tgrid-wrap" style="width:100%; height:560px; overflow: visible; border-bottom:1px solid var(--tblr-border-color,#ddd);">
+            <div id="foods-grid-transposed" style="height:560px"></div>
+            <div id="superheaders"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-muted small mt-2">
+        Requires: <code>/static/vendor/tabulator/dist/css/tabulator.min.css</code>, <code>/static/vendor/tabulator/dist/js/tabulator.min.js</code>.
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/tabulator/dist/css/tabulator.min.css') }}">
+  <script src="{{ url_for('static', filename='vendor/tabulator/dist/js/tabulator.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='app/foods_grid_transposed.js') }}?v=4"></script>
+{% endblock %}

@@ -32,6 +32,7 @@
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item" href="{{ url_for('app_foods') }}">Import foods (CSV)</a></li>
               <li><a class="dropdown-item" href="{{ url_for('app_foods') }}">Export my data</a></li>
+
             {% else %}
               <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('app_daily')) }}">New day</a></li>
               <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('app_dashboard')) }}">Open recent…</a></li>
@@ -67,30 +68,43 @@
             {% if session.get('user') %}
               <li><a class="dropdown-item" href="{{ url_for('app_foods') }}">Manage Food List</a></li>
               <li><a class="dropdown-item" href="{{ url_for('app_foods_grid') }}">Foods Grid (experimental)</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('app_foods_grid_transposed') }}">Foods Grid (Transposed)</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('luckysheet_page') }}">Luckysheet</a></li>
               <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="{{ url_for('food_search') }}">Lookup in USDA</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('search.index') }}">Search USDA</a></li>
             {% else %}
               <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('app_foods')) }}">Manage Food List</a></li>
               <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('app_foods_grid')) }}">Foods Grid (experimental)</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('app_foods_grid_transposed')) }}">Foods Grid (Transposed)</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('luckysheet_page')) }}">Luckysheet</a></li>
               <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('food_search')) }}">Lookup in USDA</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('search.index')) }}">Search USDA</a></li>
             {% endif %}
           </ul>
         </li>
 
         <!-- Reports -->
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Reports</a>
-          <ul class="dropdown-menu">
-            {% if session.get('user') %}
-              <li><a class="dropdown-item" href="{{ url_for('reports_day') }}">Day / Week / Month / Year</a></li>
-              <li><a class="dropdown-item" href="{{ url_for('reports_share') }}">Share with clinician</a></li>
-            {% else %}
-              <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('reports_day')) }}">Day / Week / Month / Year</a></li>
-              <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('reports_share')) }}">Share with clinician</a></li>
-            {% endif %}
-          </ul>
-        </li>
+        <!-- Reports -->
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Reports</a>
+        <ul class="dropdown-menu">
+          {% if session.get('user') %}
+            <li><a class="dropdown-item" href="{{ url_for('history.history_page') }}">History (Totals)</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('history.full_records_page') }}">Full Daily Records</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url_for('reports_day') }}">Day / Week / Month / Year</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('reports_share') }}">Share with clinician</a></li>
+          {% else %}
+            <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('history.history_page')) }}">History (Totals)</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('history.full_records_page')) }}">Full Daily Records</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('reports_day')) }}">Day / Week / Month / Year</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('reports_share')) }}">Share with clinician</a></li>
+          {% endif %}
+        </ul>
+      </li>
+
+
 
         <li class="nav-item"><a class="nav-link" href="{{ url_for('subscribe') }}">Subscribe</a></li>
       </ul>

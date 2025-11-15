@@ -23,3 +23,22 @@
     cssClass: "cut8",   // we'll style this to draw a heavier right border
   },
   // ------------------------------------------------------
+.history-wrap .table {
+  font-size: 0.95rem;
+  white-space: nowrap; /* keep numeric columns compact */
+}
+.history-wrap .table th,
+.history-wrap .table td {
+  vertical-align: middle;
+}
+.history-wrap .micro {
+  font-size: .825rem;
+  color: var(--tblr-secondary, #6c757d);
+}
+.history-wrap .headbar {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .5rem;
+}

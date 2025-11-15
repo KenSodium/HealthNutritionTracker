@@ -2,7 +2,8 @@ console.log("[GRID] foods_grid.js loaded");
 
 const $ = (s, r = document) => r.querySelector(s);
 
-// Columns (NOTE: serving field names now match your Flask API rows)
+/* ---------------- Columns: grouped with super-headings ---------------- */
+
 const COLS = [
   {
     title: "",
@@ -18,25 +19,68 @@ const COLS = [
   },
   { title: "Food", field: "description", width: 220, minWidth: 160, headerSort: true, editor: "input", frozen: true },
 
-  // Serving columns (match API row keys)
-  { title: "Size",       field: "serving_size",     width: 90,  minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
-  { title: "Units",      field: "serving_units",    width: 100, minWidth: 70, headerSort: true, hozAlign: "left",  editor: "input"  },
-  { title: "Weight (g)", field: "serving_weight_g", width: 110, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
+  {
+    title: "Serving Size",
+    columns: [
+      { title: "Number of Units", field: "Size", width: 110, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
+      { title: "Name of Units",  field: "Units", width: 120, minWidth: 70, headerSort: true, hozAlign: "left",  editor: "input"  },
+      { title: "Weight of Serving (g)", field: "Weight", width: 140, minWidth: 90, headerSort: true, hozAlign: "right", editor: "number" },
+    ],
+  },
 
-  { title: "Sodium (mg)", field: "Sodium",    width: 120, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
-  { title: "Potassium",   field: "Potassium", width: 120, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
-  { title: "Protein (g)", field: "Protein",   width: 110, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
-  { title: "Carbs (g)",   field: "Carbs",     width: 110, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
-  { title: "Fat (g)",     field: "Fat",       width: 100, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
-  { title: "Sat Fat (g)", field: "Sat Fat",   width: 120, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
-  { title: "Mono Fat (g)",field: "Mono Fat",  width: 120, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
-  { title: "Poly Fat (g)",field: "Poly Fat",  width: 120, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
-  { title: "Sugar (g)",   field: "Sugar",     width: 110, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
-  { title: "Calcium (mg)",field: "Calcium",   width: 120, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
-  { title: "Magnesium (mg)", field: "Magnesium", width: 120, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
-  { title: "Iron (mg)",   field: "Iron",      width: 110, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
-  { title: "Calories",    field: "Calories",  width: 110, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
+  {
+    title: "Nutrients",
+    columns: [
+      // Put a heavy divider on the first column of this group via cssClass
+      { title: "Sodium (mg)",    field: "Sodium",    width: 120, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number", cssClass: "col-divider-left" },
+      { title: "Potassium (mg)", field: "Potassium", width: 130, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
+      { title: "Protein (g)",    field: "Protein",   width: 110, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
+      { title: "Carbs (g)",      field: "Carbs",     width: 110, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
+      { title: "Fat (g)",        field: "Fat",       width: 100, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
+      { title: "Sat Fat (g)",    field: "Sat Fat",   width: 120, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
+      { title: "Mono Fat (g)",   field: "Mono Fat",  width: 120, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
+      { title: "Poly Fat (g)",   field: "Poly Fat",  width: 120, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
+      { title: "Sugar (g)",      field: "Sugar",     width: 110, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
+      { title: "Calcium (mg)",   field: "Calcium",   width: 120, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
+      { title: "Magnesium (mg)", field: "Magnesium", width: 130, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
+      { title: "Iron (mg)",      field: "Iron",      width: 110, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
+      { title: "Calories",       field: "Calories",  width: 110, minWidth: 70, headerSort: true, hozAlign: "right", editor: "number" },
+    ],
+  },
 ];
+
+/* ---------------- Demo rows (keep your existing mock data) ---------------- */
+
+function makeRow(i) {
+  const sizes = [
+    { Size: 1, Units: "slice",    Weight: 28 },
+    { Size: 3, Units: "crackers", Weight: 18 },
+    { Size: 2, Units: "tbsp",     Weight: 30 },
+    { Size: 1, Units: "cup",      Weight: 240 },
+  ];
+  const s = sizes[i % sizes.length];
+
+  return {
+    description: `Food ${i + 1}`,
+    Size: s.Size,
+    Units: s.Units,
+    Weight: s.Weight,
+    Sodium: Math.round(Math.random() * 800),
+    Potassium: Math.round(Math.random() * 1200),
+    Protein: +(Math.random() * 40).toFixed(1),
+    Carbs: +(Math.random() * 60).toFixed(1),
+    Fat: +(Math.random() * 30).toFixed(1),
+    "Sat Fat": +(Math.random() * 10).toFixed(1),
+    "Mono Fat": +(Math.random() * 12).toFixed(1),
+    "Poly Fat": +(Math.random() * 12).toFixed(1),
+    Sugar: +(Math.random() * 20).toFixed(1),
+    Calcium: Math.round(Math.random() * 400),
+    Magnesium: Math.round(Math.random() * 200),
+    Iron: +(Math.random() * 10).toFixed(1),
+    Calories: Math.round(Math.random() * 400),
+  };
+}
+const ROWS = Array.from({ length: 25 }, (_, i) => makeRow(i));
 
 if (!window.Tabulator) {
   console.error("Tabulator library not found (static/vendor/tabulator/dist).");
@@ -46,51 +90,22 @@ let grid;
 let lastRowClicked = null;
 let scroller = null;
 
+/* ---------------- Init ---------------- */
+
 (function init() {
   const mount = $("#foods-grid");
   if (!mount || !window.Tabulator) return;
 
   grid = new Tabulator(mount, {
+    data: ROWS,
     columns: COLS,
-    height: "100%",
-    layout: "fitData",              // natural width; horizontal scroll appears when needed
+    height: "540px",              // explicit height so body renders
+    layout: "fitData",            // allow natural width (overflow ⇒ horizontal scroll)
     resizableColumnFit: false,
     movableColumns: true,
     selectable: true,
     rowHeight: 28,
     columnDefaults: { headerHozAlign: "left", vertAlign: "middle" },
-
-    // ---- Load from your API
-    ajaxURL: "/api/foods/list",
-    ajaxConfig: "GET",
-    ajaxContentType: "json",
-    ajaxResponse: function (_url, params, response) {
-      // Flask returns {total, rows}
-      return (response && response.rows) || [];
-    },
-
-    // Save cell edits to your API
-    cellEdited: async function (cell) {
-      try {
-        const row = cell.getRow().getData();
-        const field = cell.getField();
-        const value = cell.getValue();
-        if (!row.fdcId) return;
-
-        const body = {};
-        body[field] = value;
-
-        const res = await fetch(`/api/foods/${encodeURIComponent(row.fdcId)}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) throw new Error(`PATCH failed: ${res.status}`);
-      } catch (err) {
-        console.error(err);
-        alert("Save failed. See console.");
-      }
-    },
   });
 
   grid.on("rowClick", (_e, row) => (lastRowClicked = row));
@@ -99,25 +114,17 @@ let scroller = null;
     const root = grid.getElement?.();
     scroller = root ? root.querySelector(".tabulator-tableholder") : null;
     if (scroller) scroller.style.overflowX = "auto";
+    console.log("[GRID] rows =", grid.getDataCount()); // sanity check
 
-    addDividerAfter("Protein");
     wireToolbar();
-    wireSearch();                 // client-side filter is fine for now
+    wireSearch();
     wireColumnWidthControl();
     wirePanButtons();
   });
 })();
 
-function addDividerAfter(fieldName) {
-  const root = grid?.getElement?.();
-  if (!root) return;
-  const headerCol = root.querySelector(`.tabulator-col[data-field="${fieldName}"]`);
-  if (headerCol) headerCol.style.borderRight = "2px solid var(--tblr-border-color,#666)";
-  const cells = root.querySelectorAll(`.tabulator-cell[tabulator-field="${fieldName}"]`);
-  cells.forEach((el) => (el.style.borderRight = "2px solid var(--tblr-border-color,#666)"));
-}
+/* ---------------- Column Width control ---------------- */
 
-// ---------- Column Width control ----------
 function wireColumnWidthControl() {
   const slider = $("#colw");
   const label = $("#colw-val");
@@ -135,6 +142,8 @@ function wireColumnWidthControl() {
     grid.getColumns().forEach((col) => {
       const field = col.getField && col.getField();
       if (!field || skipFields.has(field)) return;
+      // skip group headers (no field)
+      if (col.getType && col.getType() === "group") return;
 
       if (canUpdateDef) {
         try { grid.updateColumnDefinition(field, { width: target }); return; } catch {}
@@ -162,7 +171,8 @@ function wireColumnWidthControl() {
   slider.addEventListener("change", (e) => schedule(e.target.value));
 }
 
-// ---------- Pan buttons ----------
+/* ---------------- Pan buttons ---------------- */
+
 function wirePanButtons() {
   const left = $("#btn-pan-left");
   const right = $("#btn-pan-right");
@@ -177,7 +187,8 @@ function wirePanButtons() {
   right?.addEventListener("click", () => pan(+STEP));
 }
 
-// ---------- Toolbar ----------
+/* ---------------- Toolbar (insert/delete/export/import) ---------------- */
+
 function wireToolbar() {
   const btnInsertTop = $("#btn-insert-top");
   const btnDeleteRow = $("#btn-delete-row");
@@ -185,50 +196,28 @@ function wireToolbar() {
   const btnExport = $("#btn-export");
   const fileImp = $("#file-import");
 
-  btnInsertTop?.addEventListener("click", async () => {
-    try {
-      const res = await fetch("/api/foods/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: "New Food" }),
-      });
-      if (!res.ok) throw new Error(`create failed: ${res.status}`);
-      const data = await res.json();
-      if (data && data.row) {
-        await grid.addData([data.row], true); // add to top
-      } else {
-        // fallback: reload
-        grid.replaceData();
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Insert failed.");
-    }
+  btnInsertTop?.addEventListener("click", () => {
+    grid.addRow(blankRow(), true); // add at top
   });
 
-  btnDeleteRow?.addEventListener("click", async () => {
-    let rows = [];
+  btnDeleteRow?.addEventListener("click", () => {
     if (lastRowClicked) {
-      rows = [lastRowClicked];
-    } else {
-      rows = grid.getSelectedRows().slice(0, 1);
+      lastRowClicked.delete();
+      lastRowClicked = null;
+      return;
     }
-    if (!rows.length) return;
-
-    await bulkDeleteRows(rows);
+    const rows = grid.getSelectedRows();
+    if (rows.length) rows[0].delete();
   });
 
-  btnDelete?.addEventListener("click", async () => {
+  btnDelete?.addEventListener("click", () => {
     const rows = grid.getSelectedRows();
     if (!rows.length) return;
-    await bulkDeleteRows(rows);
+    rows.forEach((r) => r.delete());
   });
 
   btnExport?.addEventListener("click", () => {
-    // Use your server export (preserves exact numbers/columns):
-    window.location.href = "/api/foods/export.csv";
-    // Or keep Tabulator client export:
-    // grid.download("csv", "foods_grid.csv");
+    grid.download("csv", "foods_grid.csv");
   });
 
   fileImp?.addEventListener("change", async (e) => {
@@ -239,14 +228,16 @@ function wireToolbar() {
       const rows = parseDelimited(text);
       if (!rows.length) return;
 
-      // Map CSV headers to our grid fields (including serving_* names)
       const map = {
         food: "description",
         description: "description",
         name: "description",
-        size: "serving_size",
-        units: "serving_units",
-        weight: "serving_weight_g",
+        size: "Size",
+        "number of units": "Size",
+        units: "Units",
+        "name of units": "Units",
+        weight: "Weight",
+        "weight of serving (g)": "Weight",
         sodium: "Sodium",
         potassium: "Potassium",
         protein: "Protein",
@@ -262,27 +253,23 @@ function wireToolbar() {
         iron: "Iron",
         calories: "Calories",
       };
-
       const out = rows.map((r) => {
         const o = {};
         for (const [k, v] of Object.entries(r)) {
           const key = (k || "").trim().toLowerCase();
           const field = map[key];
           if (!field) continue;
-          if (field === "description" || field === "serving_units") o[field] = String(v || "");
+          if (field === "description" || field === "Units") o[field] = String(v || "");
           else o[field] = v === "" ? null : Number(v);
         }
-        // Ensure all fields exist
-        COLS.forEach((c) => {
-          if (!(c.field in o) && c.field !== "_select") {
-            o[c.field] = (c.field === "description" || c.field === "serving_units") ? "" : null;
-          }
+        // fill any missing fields so row is complete
+        walkLeafFields(COLS).forEach((fld) => {
+          if (!(fld in o)) o[fld] = (fld === "description" || fld === "Units") ? "" : null;
         });
         return o;
       });
 
-      // Client-side insert (fast). If you prefer server-side import, we can add an endpoint later.
-      await grid.addData(out, true);
+      grid.addData(out, true); // prepend at top
     } catch (err) {
       console.error("Import failed", err);
       alert("Import failed. See console.");
@@ -292,31 +279,8 @@ function wireToolbar() {
   });
 }
 
-async function bulkDeleteRows(rows) {
-  try {
-    const ids = rows
-      .map((r) => r.getData())
-      .map((d) => d.fdcId)
-      .filter(Boolean);
+/* ---------------- Search ---------------- */
 
-    if (!ids.length) return;
-
-    const res = await fetch("/api/foods/bulk_delete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids }),
-    });
-    if (!res.ok) throw new Error(`bulk_delete failed: ${res.status}`);
-
-    rows.forEach((r) => r.delete());
-    lastRowClicked = null;
-  } catch (err) {
-    console.error(err);
-    alert("Delete failed.");
-  }
-}
-
-// ---------- Search (client-side filter is fine for now) ----------
 function wireSearch() {
   const input = $("#food-search");
   const clear = $("#btn-clear-search");
@@ -343,7 +307,30 @@ function wireSearch() {
   });
 }
 
-// ---------- Helpers ----------
+/* ---------------- Helpers ---------------- */
+
+function blankRow() {
+  return {
+    description: "",
+    Size: null,
+    Units: "",
+    Weight: null,
+    Sodium: null,
+    Potassium: null,
+    Protein: null,
+    Carbs: null,
+    Fat: null,
+    "Sat Fat": null,
+    "Mono Fat": null,
+    "Poly Fat": null,
+    Sugar: null,
+    Calcium: null,
+    Magnesium: null,
+    Iron: null,
+    Calories: null,
+  };
+}
+
 function parseDelimited(text) {
   const first = text.split(/\r?\n/).find((l) => l.trim().length) || "";
   const delim = first.includes("\t") && !first.includes(",") ? "\t" : ",";
@@ -377,4 +364,14 @@ function parseDelimited(text) {
     out.push(cur);
     return out;
   }
+}
+
+/* gather leaf fields from grouped columns */
+function walkLeafFields(cols) {
+  const out = [];
+  for (const c of cols) {
+    if (Array.isArray(c.columns)) out.push(...walkLeafFields(c.columns));
+    else if (c.field) out.push(c.field);
+  }
+  return out;
 }

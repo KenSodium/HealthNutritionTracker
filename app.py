@@ -1,6 +1,6 @@
 # app.py (cleaned & consolidated)
 
-from flask import Flask, render_template, request, redirect, url_for, session, make_response
+from flask import Flask, render_template, request, redirect, url_for, session, make_response, jsonify
 from flask_session import Session
 import os
 import re
@@ -11,6 +11,7 @@ from datetime import date, timedelta
 from statistics import mean
 from functools import wraps
 import random
+import json
 
 # ---- project modules ----
 from nutrition.constants import TARGET_NUTRIENTS, LABEL_TO_NAME, ALLOWED_TYPES
@@ -51,7 +52,6 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.jinja_env.auto_reload = True
 app.config['EXPLAIN_TEMPLATE_LOADING'] = True
 
-
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-secret-key")  # set BEFORE Session()
 
 app.config.update(
@@ -70,9 +70,9 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-secret-key")  # TODO: s
 
 def approx_session_bytes():
     """Debug helper for session size warnings."""
-    import json
+    import json as _json
     try:
-        return len(json.dumps(dict(session)))
+        return len(_json.dumps(dict(session)))
     except Exception:
         return -1
 
@@ -162,6 +162,32 @@ def _build_totals_view(totals_raw: dict, targets: dict, prot_target: float, cal_
         "cal_target":  cal_t,
     }
 
+# ---- History helpers (session-backed for now; later move to DB/file) ----
+HISTORY_NUTRIENTS = [
+    "Sodium","Potassium","Phosphorus","Calcium","Magnesium",
+    "Protein","Carbs","Fat","Sat Fat","Mono Fat","Poly Fat",
+    "Sugar","Iron","Calories"
+]
+
+def _history_bucket():
+    """Return the dict {date_iso: {date, totals:{...}, saved_at}} in session."""
+    h = session.setdefault("history_days", {})
+    if not isinstance(h, dict):
+        h = {}
+        session["history_days"] = h
+    return h
+
+def _compute_day_totals_from_entries(entries: dict) -> dict:
+    """entries is the daymap (id->entry). Return totals over HISTORY_NUTRIENTS."""
+    totals = {k: 0.0 for k in HISTORY_NUTRIENTS}
+    for e in (entries or {}).values():
+        n = e.get("nutrients") or {}
+        for k in totals:
+            try:
+                totals[k] += float(n.get(k, 0.0))
+            except Exception:
+                pass
+    return totals
 
 # =============================================================================
 # Auth helpers
@@ -313,28 +339,21 @@ def _format_range(values: list[float]) -> str:
 
 # --- Daily Diary (shell) ------------------------------------------------------
 
-from flask import jsonify
-
 def _iso_today():
     return datetime.date.today().isoformat()
 
 def _my_foods():
-    # Expect your session to hold a list like you already use:
-    # [{fdcId, description, nutrients(per100), pref: {unit_key, unit_grams}}, ...]
     foods = session.get("my_food_list", [])
-    # ensure per100 exists under .nutrients
     for f in foods:
         f.setdefault("nutrients", f.get("per100", {}))
     return foods
 
 def _day_entries_map(date_iso):
-    # day entries stored under session['diary_entries'][date] = {id: {fdcId, grams, nutrients, description}}
     di = session.setdefault("diary_entries", {})
     di.setdefault(date_iso, {})
     return di[date_iso]
 
 def _entry_id():
-    # simple counter id
     c = session.setdefault("_entry_seq", 0) + 1
     session["_entry_seq"] = c
     return f"e{c}"
@@ -354,14 +373,24 @@ def _sum_totals(entries: dict) -> dict:
     for e in entries.values():
         for k in keys:
             totals[k] += float((e.get("nutrients") or {}).get(k, 0.0))
-    # include targets for the JS bars
     totals["targets"] = session.get("targets", {"na": 1500, "k": 3400, "cal": 0})
     return totals
+
+
+# ---- Luckysheet demo routes -----------------------------------
+
+@app.route("/luckysheet")
+def luckysheet_page():
+    return render_template("app/luckysheet.html")
+# persist Luckysheet workbook JSON under the app's instance folder
+STORE = os.path.join(app.instance_path, "luckysheet.json")
+os.makedirs(app.instance_path, exist_ok=True)
+
+
 
 # --- Signed-in app (Tabler) ---
 @app.route("/app/daily")
 def app_daily():
-    # render the NEW app template (no redirect to the old blueprint)
     date_iso = request.args.get("date") or datetime.date.today().isoformat()
     return render_template(
         "app/daily.html",
@@ -369,28 +398,18 @@ def app_daily():
         my_foods=session.get("my_food_list", []),
     )
 
+@app.route("/app/foods/grid-transposed", endpoint="app_foods_grid_transposed")
+def app_foods_grid_transposed():
+    return render_template("app/foods_grid_transposed.html")
+
+
 # --- API: save a food (create or update) ---
 @app.route("/app/api/foods/save", methods=["POST"])
 def api_foods_save():
-    """Create or update a manual food in session['my_food_list'].
-
-    Input JSON:
-      {
-        "id": "custom:Old_Name" | null,
-        "name": "Bread",
-        "brand": "BrandCo",
-        "nutrients": { "Calories": 80, "Sodium": 180, ... },
-        "serving_grams": 28,                 # optional
-        "pref_unit": "g",                    # optional
-        "pref_unit_grams": 240               # optional
-      }
-    """
-    import re, random, string
-    from flask import jsonify, request, session
-
+    """Create or update a manual food in session['my_food_list']."""
+    import random, string
     data = request.get_json(force=True, silent=True) or {}
 
-    # --- read incoming fields ---
     incoming_id   = (data.get("id") or "").strip() or None
     name          = (data.get("name") or "").strip() or "Manual Food"
     brand         = (data.get("brand") or "").strip()
@@ -399,7 +418,6 @@ def api_foods_save():
     pref_unit     = (data.get("pref_unit") or "g").lower()
     pref_unit_g   = data.get("pref_unit_grams")
 
-    # sanitize numeric map
     clean_per100 = {}
     for k, v in per100.items():
         try:
@@ -407,7 +425,6 @@ def api_foods_save():
         except Exception:
             pass
 
-    # normalize optional numbers
     try:
         serving_grams = float(serving_grams) if serving_grams not in (None, "", "0") else None
     except Exception:
@@ -417,7 +434,6 @@ def api_foods_save():
     except Exception:
         pref_unit_g = None
 
-    # --- generate or reuse id ---
     def slug(s):
         s = re.sub(r"\s+", "_", s.strip())
         s = re.sub(r"[^a-zA-Z0-9_:-]", "", s)
@@ -426,22 +442,20 @@ def api_foods_save():
     lst = session.setdefault("my_food_list", [])
 
     if incoming_id:
-        fdc_id = incoming_id  # keep the same id on edit (even if name changed)
+        fdc_id = incoming_id
     else:
         base = f"custom:{slug(name)}"
         fdc_id = base
-        # ensure uniqueness if name collides
         if any(str(f.get("fdcId")) == fdc_id for f in lst):
             suffix = "".join(random.choice(string.ascii_lowercase + string.digits) for _ in range(4))
             fdc_id = f"{base}-{suffix}"
 
-    # --- build item we store ---
     item = {
         "fdcId": fdc_id,
-        "description": name,      # display name
+        "description": name,
         "brandName": brand,
         "dataType": "Manual",
-        "per100": clean_per100,   # canonical nutrient bag
+        "per100": clean_per100,
         "servingSize": serving_grams,
         "servingSizeUnit": "g" if serving_grams else None,
         "pref": {
@@ -450,7 +464,6 @@ def api_foods_save():
         }
     }
 
-    # --- upsert by id ---
     replaced = False
     for i, f in enumerate(lst):
         if str(f.get("fdcId")) == fdc_id:
@@ -463,13 +476,13 @@ def api_foods_save():
     session.modified = True
     return jsonify({"ok": True, "my_food_list": lst})
 
+
 # ---- JSON API for the page ----
 
 @app.route("/api/day")
 def api_day_get():
     date_iso = request.args.get("date") or _iso_today()
     entries = _day_entries_map(date_iso)
-    # flatten to list for the UI
     data = {
         "date": date_iso,
         "entries": list(entries.values()),
@@ -482,8 +495,7 @@ def api_day_add():
     payload = request.get_json(force=True) or {}
     date_iso = payload.get("date") or _iso_today()
     fdcId = str(payload.get("fdcId") or "").strip()
-    grams = float(payload.get("grams") or 100.0)  # default 100 g; user can edit
-    # find food in my list
+    grams = float(payload.get("grams") or 100.0)
     food = next((f for f in _my_foods() if str(f.get("fdcId")) == fdcId), None)
     if not food:
         return jsonify({"ok": False, "error": "food-not-found"}), 400
@@ -516,7 +528,6 @@ def api_day_update():
     if field == "grams":
         grams = float(value or 0.0)
         rec["grams"] = grams
-        # recompute nutrients from per100 if we still have the food
         food = next((f for f in _my_foods() if str(f.get("fdcId")) == str(rec.get("fdcId"))), None)
         per100 = (food or {}).get("nutrients", {})
         rec["nutrients"] = _nutrients_for_grams(per100, grams)
@@ -540,13 +551,8 @@ def api_day_remove():
 # =============================================================================
 
 # =============================================================================
-# main
-# =============================================================================
-# =============================================================================
 # Marketing & Auth routes (stay in app.py)
 # =============================================================================
-#
-
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -560,8 +566,7 @@ def login():
             plan  = (request.form.get("plan") or "free").strip()
             session["user"] = {"name": name, "email": email, "plan": plan}
 
-        # in /login POST handler
-        nxt = request.args.get("next") or url_for("app_dashboard")  # or url_for("app_daily")
+        nxt = request.args.get("next") or url_for("app_dashboard")
         return redirect(nxt)
 
     return render_template("marketing/login.html")
@@ -583,42 +588,19 @@ def logout():
     session.pop("user", None)
     return redirect(url_for("home"))
 
-
-@app.route("/sample-report")
-def sample_report():
-    return render_template("marketing/clinician_report_sample.html")
-
-@app.route("/foodportions")
-def food_portions():
-    show_all = request.args.get("all") == "1"
-    fdc_filter = set()
-    if not show_all:
-        for f in session.get("my_food_list", []):
-            fid = str(f.get("fdcId", ""))
-            if fid.isdigit():
-                fdc_filter.add(int(fid))
-    rows, cols = build_food_portion_rows(fdc_filter if fdc_filter else None)
-    return render_template("food_portions.html", data=rows, columns=cols)
-
-from flask import render_template, session, redirect, url_for
-
 @app.route("/")
 def marketing_home():
-    # pure marketing landing, no app data required
     return render_template("landing.html")
 
 @app.route("/demo/softui")
 def softui_about_demo():
     return render_template("softui_about_demo.html")
 
-
 app.add_url_rule("/", endpoint="home", view_func=marketing_home)
 
-# Keep your existing app “home” (the one with totals/quick add) at /app
+# Keep your existing app “home” at /app
 @app.route("/app")
 def app_home():
-    # if you have auth, gate it:
-    # if not session.get("user_id"): return redirect(url_for("login"))
     home_totals = {
         "sodium": 0, "sodium_pct": 0, "sodium_remaining": 1500,
         "potassium": 0, "potassium_pct": 0, "potassium_remaining": 4000,
@@ -628,7 +610,6 @@ def app_home():
 
 @app.route("/demo/tabler")
 def tabler_demo():
-    # demo numbers – replace later with real aggregates
     kpis = {"sodium_avg": 1580, "potassium_avg": 3200}
     days = 7
     top_foods = [
@@ -641,21 +622,22 @@ def tabler_demo():
 # --- Public pages (Soft UI) ---
 @app.route("/how-to")
 def how_to():
-    return render_template("how_it_works.html")  # stub with anchors
+    return render_template("how_it_works.html")
 
 @app.route("/about")
 def about():
-    return render_template("about.html")         # simple public page
+    return render_template("about.html")
 
 @app.route("/subscribe")
 def subscribe():
-    return render_template("subscribe.html")     # pricing/CTA stub
+    return render_template("subscribe.html")
 
 # --- Bridges to existing features ---
+
+# Legacy entry point: keep it but redirect to the new blueprint page
 @app.route("/food/search")
 def food_search():
-    return redirect(url_for("search.index"))     # your USDA search blueprint
-
+    return redirect(url_for("search.index"))
 
 @app.route("/app/reports/day")
 def reports_day():
@@ -663,11 +645,11 @@ def reports_day():
 
 @app.route("/app/reports/share")
 def reports_share():
-    return render_template("reports_share.html") # stub for share-link flow
+    return render_template("reports_share.html")
+
 # --- Dashboard (signed-in app) ---
 @app.route("/app/dashboard")
 def app_dashboard():
-    # TODO: replace these placeholders with your real query (e.g., DB) later
     recent_days = [
         {"date": "2025-10-18", "sodium": 1420, "potassium": 3050, "calories": 1820},
         {"date": "2025-10-17", "sodium": 1560, "potassium": 2890, "calories": 1750},
@@ -675,24 +657,17 @@ def app_dashboard():
         {"date": "2025-10-15", "sodium": 1495, "potassium": 2980, "calories": 1760},
         {"date": "2025-10-14", "sodium": 1620, "potassium": 3105, "calories": 1880},
     ]
-
-    # If you already compute "today totals" elsewhere, pass those instead
     today = {"date": "2025-10-19", "sodium": 640, "potassium": 1100, "calories": 820}
-
-    return render_template(
-        "app/dashboard.html",
-        recent_days=recent_days,
-        today=today,
-    )
+    return render_template("app/dashboard.html", recent_days=recent_days, today=today)
 
 # --- Food List Editor (signed-in app) ---
 @app.route("/app/foods")
 def app_foods():
-    # gate if you want auth:  if not session.get("user"): return redirect(url_for("login", next=request.path))
     my_foods = session.get("my_food_list", [])
     return render_template("app/foods.html", my_foods=my_foods)
 
-from flask import jsonify
+
+# ---------------- Foods list APIs ----------------
 
 def _ensure_my_food_list():
     lst = session.get("my_food_list")
@@ -706,7 +681,6 @@ def _coerce_float(x):
     except: return 0.0
 
 def _canonicalize_item(payload: dict) -> dict:
-    # Build a consistent “Manual” food entry with per-100g nutrients and optional serving pref
     nutrients = payload.get("nutrients") or {}
     per100 = {
         "Sodium":     _coerce_float(nutrients.get("Sodium")),
@@ -733,7 +707,6 @@ def _canonicalize_item(payload: dict) -> dict:
         "dataType": "Manual",
         "nutrients": per100,
     }
-    # optional serving prefs
     pref = payload.get("pref") or {}
     if pref:
         item["pref"] = {}
@@ -750,7 +723,6 @@ def api_foods_upsert():
     data = request.get_json(silent=True) or {}
     item = _canonicalize_item(data)
     lst = _ensure_my_food_list()
-    # replace existing id or append
     for i, f in enumerate(lst):
         if str(f.get("fdcId")) == str(item["fdcId"]):
             lst[i] = item
@@ -771,17 +743,11 @@ def api_foods_delete():
 
 @app.post("/api/foods/import")
 def api_foods_import():
-    """
-    Accepts plain text in JSON: {"text": "..."} with CSV/TSV paste.
-    Columns recognized (case-insensitive): description, brand, sodium, potassium, protein, calories, etc.
-    """
-    import csv, io
     payload = request.get_json(silent=True) or {}
     text = payload.get("text") or ""
     if not text.strip():
         return jsonify({"ok": False, "error": "empty"}), 400
 
-    # auto-detect delimiter
     delimiter = "\t" if "\t" in text and "," not in text.splitlines()[0] else ","
     reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
     added = 0
@@ -837,16 +803,11 @@ def api_foods_export_csv():
         "Content-Disposition": "attachment; filename=foods_export.csv",
     }))
 
-
-from flask import jsonify
-
 def _foods_by_id():
-    """Index my_food_list by fdcId for quick lookups."""
     foods = session.get("my_food_list", [])
     return {str(f.get("fdcId")): f for f in foods}
 
 def _per100(n):
-    """Ensure a per-100g nutrient dict with expected keys (safe defaults)."""
     wanted = ["Sodium","Potassium","Phosphorus","Calcium","Magnesium",
               "Protein","Carbs","Fat","Sat Fat","Mono Fat","Poly Fat",
               "Sugar","Iron","Calories"]
@@ -859,7 +820,6 @@ def _per100(n):
     return out
 
 def _scale(n100, grams):
-    """Scale per-100g dict by grams."""
     out = {}
     for k, v in n100.items():
         try:
@@ -871,8 +831,7 @@ def _scale(n100, grams):
 @app.get("/app/api/diary")
 def api_diary_get():
     date_iso = request.args.get("date") or datetime.date.today().isoformat()
-    daymap = get_daymap(date_iso)  # {'fdcId': {'grams', 'nutrients', 'desc'}}
-    # flatten for UI
+    daymap = get_daymap(date_iso)
     rows = []
     for fid, rec in daymap.items():
         rows.append({
@@ -886,7 +845,7 @@ def api_diary_get():
     return jsonify({"date": date_iso, "entries": rows, "totals": totals})
 
 @app.post("/app/api/diary/add")
-def api_diary_add():
+def api_diary_add_v2():
     data = request.get_json(silent=True) or {}
     date_iso = data.get("date") or datetime.date.today().isoformat()
     fid = str(data.get("fdcId") or "")
@@ -927,7 +886,7 @@ def api_diary_qty():
     return jsonify({"ok": True})
 
 @app.post("/app/api/diary/remove")
-def api_diary_remove():
+def api_diary_remove_v2():
     data = request.get_json(silent=True) or {}
     date_iso = data.get("date") or datetime.date.today().isoformat()
     fid = str(data.get("fdcId") or "")
@@ -937,6 +896,25 @@ def api_diary_remove():
         session.modified = True
     return jsonify({"ok": True})
 
+@app.post("/app/api/history/save")
+def api_history_save():
+    payload = request.get_json(silent=True) or {}
+    date_iso = payload.get("date") or datetime.date.today().isoformat()
+
+    # Use the same storage the Daily page uses
+    entries = _day_entries_map(date_iso)  # id -> {grams, nutrients, description}
+    totals = _compute_day_totals_from_entries(entries)
+
+    # Upsert by date
+    h = _history_bucket()
+    h[date_iso] = {
+        "date": date_iso,
+        "totals": totals,
+        "saved_at": datetime.datetime.now().isoformat(timespec="seconds"),
+    }
+    session.modified = True
+
+    return jsonify({"ok": True, "saved": h[date_iso]})
 
 # -----------------------------------------------------------------------------
 # App factory (safe starter)
@@ -946,24 +924,26 @@ def create_app():
     Return the already-configured global `app`.
     We now register all blueprints unconditionally (no SC_BP_* flags).
     """
-
-    # --- Import blueprints (fail fast if a file is missing) ---
     from app_blueprints.reports import reports_bp
     from app_blueprints.daily import daily_bp
     from app_blueprints.search import search_bp
     from app_blueprints.recipes import recipes_bp
     from app_blueprints.coach import coach_bp
     from app_blueprints.manual import manual_bp
+    from app_blueprints.luckysheet_api import bp as luckysheet_api_bp
+    from app_blueprints.history_api import history_bp
 
-    # --- Register blueprints ---
-    app.register_blueprint(reports_bp)
+    app.register_blueprint(reports_bp, url_prefix="/reports")
     app.register_blueprint(daily_bp)
     app.register_blueprint(search_bp)
     app.register_blueprint(recipes_bp)
     app.register_blueprint(coach_bp)
     app.register_blueprint(manual_bp)
+    app.register_blueprint(luckysheet_api_bp)
+    app.register_blueprint(history_bp)
+    print("=== URL MAP ===")
+    print(app.url_map)
 
-    # --- Route dump (handy to see final endpoints) ---
     with app.app_context():
         print("\n==== ROUTES ====")
         for r in sorted(app.url_map.iter_rules(), key=lambda x: x.rule):
@@ -972,78 +952,16 @@ def create_app():
 
     return app
 
-# --- Food List JSON save (manual-first) ---
-from flask import jsonify
 
-# TOP imports (make sure these are present)
-from flask import jsonify, request, session
-
-# ...
-
-@app.route("/app/foods/save", methods=["POST"])
-def foods_save():
-    data = request.get_json(force=True, silent=True) or {}
-    name = (data.get("name") or "").strip() or "Manual Food"
-
-    prev_id = (data.get("id") or "").strip() or None
-    new_id  = f"custom:{name}".replace(" ", "_")
-
-    per100 = data.get("nutrients") or {}
-    serving_grams = data.get("serving_grams")
-    try:
-        serving_grams = float(serving_grams) if serving_grams not in (None, "", "0") else None
-    except Exception:
-        serving_grams = None
-
-    item = {
-        "fdcId": new_id,
-        "description": name,
-        "brandName": data.get("brand") or "",
-        "dataType": "Manual",
-        "servingSize": serving_grams,
-        "servingSizeUnit": "g" if serving_grams else None,
-        "per100": per100,
-        "pref": {
-            "unit_key": (data.get("pref_unit") or "g").lower()
-        }
-    }
-    if data.get("pref_unit_grams"):
-        try:
-            item["pref"]["unit_grams"] = float(data["pref_unit_grams"])
-        except Exception:
-            pass
-
-    lst = session.setdefault("my_food_list", [])
-
-    # Prefer replacing by prev_id (edit/rename)
-    if prev_id:
-        for i, f in enumerate(lst):
-            if str(f.get("fdcId")) == prev_id:
-                lst[i] = item
-                break
-        else:
-            lst.append(item)
-    else:
-        # Fallback: replace by new_id (same-name edit) or append
-        for i, f in enumerate(lst):
-            if str(f.get("fdcId")) == new_id:
-                lst[i] = item
-                break
-        else:
-            lst.append(item)
-
-    session.modified = True
-    return jsonify({"ok": True, "my_food_list": lst})
-
-from flask import render_template  # you likely already have this
+# --- Grid pages kept (no duplicates) ------------------------------------------
 
 @app.get("/app/foods/grid")
 def app_foods_grid():
     return render_template("app/foods_grid.html")
-print(app.url_map)
 
-# --- Grid API (session-backed; safe & additive) --------------------------------
-from flask import jsonify, request
+
+# --- Bulk APIs (unchanged) ----------------------------------------------------
+
 import datetime as _dt
 
 def _ensure_list():
@@ -1060,26 +978,18 @@ def _find_food(fid: str):
     return None
 
 def _nut_bag(food):
-    """Return the per-100g nutrient dict, whatever key name you used ('nutrients' or 'per100')."""
     return dict(food.get("nutrients") or food.get("per100") or {})
 
 def _as_grid_row(food):
     n = _nut_bag(food)
     pref = food.get("pref") or {}
     return {
-        # ids
         "id":    food.get("fdcId"),
         "fdcId": food.get("fdcId"),
-
-        # display name
         "description": food.get("description", "") or "",
-
-        # serving helpers (show up only if your grid includes these columns)
         "serving_size":    food.get("servingSize") or "",
         "serving_units":   food.get("servingSizeUnit") or (pref.get("unit_key") or ""),
         "serving_weight_g": pref.get("unit_grams"),
-
-        # nutrients expected by your grid columns
         "Sodium":     float(n.get("Sodium", 0) or 0),
         "Potassium":  float(n.get("Potassium", 0) or 0),
         "Protein":    float(n.get("Protein", 0) or 0),
@@ -1097,7 +1007,6 @@ def _as_grid_row(food):
 
 @app.get("/api/foods/list")
 def api_foods_list():
-    """Return foods from the same session list your app already uses."""
     q = (request.args.get("q") or "").strip().lower()
     rows = []
     for f in _ensure_list():
@@ -1107,9 +1016,33 @@ def api_foods_list():
         rows.append(_as_grid_row(f))
     return jsonify({"total": len(rows), "rows": rows})
 
+@app.get("/app/api/history")
+def api_history_list():
+    h = _history_bucket()
+    # return newest first
+    days = sorted(h.values(), key=lambda d: d["date"], reverse=True)
+    return jsonify({"days": days})
+
+@app.get("/app/api/history.csv")
+def api_history_csv():
+    h = _history_bucket()
+    days = sorted(h.values(), key=lambda d: d["date"])
+    cols = ["Date"] + HISTORY_NUTRIENTS
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(cols)
+    for d in days:
+        row = [d["date"]] + [round(float(d["totals"].get(k, 0.0)), 2) for k in HISTORY_NUTRIENTS]
+        w.writerow(row)
+    out = buf.getvalue().encode("utf-8-sig")
+    return make_response((out, 200, {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": "attachment; filename=history.csv",
+    }))
+
+
 @app.post("/api/foods/create")
 def api_foods_create():
-    """Create a new blank row (top of grid)."""
     from uuid import uuid4
     data = request.get_json(silent=True) or {}
     desc = (data.get("description") or "").strip() or "New Food"
@@ -1120,37 +1053,31 @@ def api_foods_create():
         "description": desc,
         "brandName": "",
         "dataType": "Manual",
-        # keep your canonical store under 'nutrients'
         "nutrients": {
             "Sodium":0, "Potassium":0, "Phosphorus":0, "Calcium":0, "Magnesium":0,
             "Protein":0, "Carbs":0, "Fat":0, "Sat Fat":0, "Mono Fat":0, "Poly Fat":0,
             "Sugar":0, "Iron":0, "Calories":0
         },
-        # optional serving helpers (compatible with your existing keys)
         "servingSize": None,
         "servingSizeUnit": None,
         "pref": {"unit_key":"g"},
     }
     lst = _ensure_list()
-    lst.insert(0, item)  # visually "top"
+    lst.insert(0, item)
     session.modified = True
     return jsonify({"row": _as_grid_row(item)}), 201
 
 @app.patch("/api/foods/<path:fid>")
 def api_foods_update(fid):
-    """Update a single field coming from a cell edit."""
     f = _find_food(fid)
     if not f:
         return jsonify({"ok": False, "error": "not_found"}), 404
     data = request.get_json(silent=True) or {}
-    # we expect { "<field>": value } (one field at a time)
     for field, value in data.items():
         if field == "description":
             f["description"] = str(value or "").strip()
         elif field in ("serving_size", "serving_units", "serving_weight_g"):
-            # map to your stored keys
             if field == "serving_size":
-                # store on servingSize (grams if you use that), accept empty as None
                 try:
                     f["servingSize"] = float(value) if str(value).strip() != "" else None
                 except Exception:
@@ -1158,7 +1085,6 @@ def api_foods_update(fid):
             elif field == "serving_units":
                 v = (str(value or "").strip() or None)
                 f["servingSizeUnit"] = v
-                # keep pref.unit_key in sync if present
                 f.setdefault("pref", {})
                 if v:
                     f["pref"]["unit_key"] = v.lower()
@@ -1169,13 +1095,11 @@ def api_foods_update(fid):
                 except Exception:
                     f["pref"]["unit_grams"] = None
         else:
-            # assume nutrient column
             n = _nut_bag(f)
             try:
                 n[field] = float(value) if str(value).strip() != "" else 0.0
             except Exception:
                 n[field] = 0.0
-            # write back to your canonical key
             f["nutrients"] = n
 
     session.modified = True
@@ -1183,7 +1107,6 @@ def api_foods_update(fid):
 
 @app.post("/api/foods/bulk_delete")
 def api_foods_bulk_delete():
-    """Delete multiple foods by id."""
     payload = request.get_json(silent=True) or {}
     ids = [str(x) for x in (payload.get("ids") or [])]
     if not ids:
@@ -1196,16 +1119,12 @@ def api_foods_bulk_delete():
 
 @app.post("/api/diary/bulk_add")
 def api_diary_bulk_add():
-    """
-    Add selected foods to the diary in one go.
-    Body: { "date": "YYYY-MM-DD", "items": [ {"fdcId": "...", "grams": 100}, ... ] }
-    """
     payload = request.get_json(silent=True) or {}
     date_iso = payload.get("date") or _dt.date.today().isoformat()
     items = payload.get("items") or []
 
-    foods = _foods_by_id()  # you already defined this helper elsewhere
-    daymap = get_daymap(date_iso)  # same helper you already use
+    foods = _foods_by_id()
+    daymap = get_daymap(date_iso)
 
     added = 0
     for it in items:
@@ -1226,10 +1145,11 @@ def api_diary_bulk_add():
     return jsonify({"ok": True, "added": added})
 
 
-
-
+# -----------------------------------------------------------------------------
+# App factory init & run
+# -----------------------------------------------------------------------------
 app = create_app()  # safe: returns the same global `app`
+
 if __name__ == "__main__":
     print(f"~ Session size (approx): {approx_session_bytes()} bytes")
     app.run(debug=True)
-

@@ -1,6 +1,5 @@
-{# templates/app/foods_grid.html #}
 {% extends "app_base.html" %}
-{% block title %}Foods Grid — Frozen + Column Width Control{% endblock %}
+{% block title %}Foods Grid — Experimental{% endblock %}
 
 {% block content %}
 <div class="page-wrapper">
@@ -18,8 +17,26 @@
     </div>
 
     <style>
-      /* Ensure Tabulator’s holder can scroll horizontally when content is wide */
+      /* Ensure horizontal scroll is available when columns overflow */
       #grid-wrap .tabulator .tabulator-tableholder { overflow-x: auto !important; }
+
+      /* Word-wrap column titles to fit long headers */
+      #grid-wrap .tabulator .tabulator-col .tabulator-col-title {
+        white-space: normal;
+        line-height: 1.1;
+      }
+
+      /* Numerics align nicely */
+      #grid-wrap .tabulator { font-variant-numeric: tabular-nums; }
+
+      /* Heavy divider before Nutrients group (applied via cssClass on first col of group) */
+      #grid-wrap .col-divider-left .tabulator-col-content {
+        border-left: 3px solid var(--tblr-border-color, #666);
+      }
+      /* Also draw divider down the column body cells */
+      #grid-wrap .tabulator-cell.col-divider-left {
+        border-left: 3px solid var(--tblr-border-color, #666) !important;
+      }
     </style>
 
     <div class="card">
@@ -65,8 +82,9 @@
 
         <!-- GRID -->
         <div id="grid-wrap"
-             style="width:100%; height:540px; overflow:hidden; border-bottom:1px solid var(--tblr-border-color,#ddd);">
-          <div id="foods-grid"></div>
+             style="width:100%; height:540px; overflow: visible; border-bottom:1px solid var(--tblr-border-color,#ddd);">
+          <!-- Explicit height on mount is important for Tabulator -->
+          <div id="foods-grid" style="height:540px"></div>
         </div>
 
         <!-- BOTTOM CONTROLS -->
@@ -93,5 +111,5 @@
   {{ super() }}
   <link rel="stylesheet" href="{{ url_for('static', filename='vendor/tabulator/dist/css/tabulator.min.css') }}">
   <script src="{{ url_for('static', filename='vendor/tabulator/dist/js/tabulator.min.js') }}"></script>
-  <script src="{{ url_for('static', filename='app/foods_grid.js') }}?v=35"></script>
+  <script src="{{ url_for('static', filename='app/foods_grid.js') }}?v=40"></script>
 {% endblock %}
