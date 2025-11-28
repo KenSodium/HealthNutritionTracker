@@ -1,0 +1,29 @@
+<nav class="foods-subnav">
+  <a href="{{ url_for('app_foods') }}"
+     class="{% if request.path == url_for('app_foods') %}active{% endif %}">Foods (List)</a>
+
+  <a href="{{ url_for('app_foods_grid') }}"
+     class="{% if request.path == url_for('app_foods_grid') %}active{% endif %}">Foods Grid</a>
+
+  <a href="{{ url_for('app_foods_grid_transposed') }}"
+     class="{% if request.path == url_for('app_foods_grid_transposed') %}active{% endif %}">Foods Grid (Transposed)</a>
+
+  <span class="sep">|</span>
+
+  <a href="{{ url_for('luckysheet_page') }}"
+     class="{% if request.path == url_for('luckysheet_page') %}active{% endif %}">Luckysheet Demo</a>
+
+  <span class="spacer"></span>
+  <a href="{{ url_for('app_dashboard') }}">Dashboard</a>
+  <a href="{{ url_for('app_daily') }}">Daily</a>
+</nav>
+
+<style>
+  .foods-subnav{display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+    padding:10px 12px;border-bottom:1px solid #e5e7eb;background:#fafafa;font-size:14px}
+  .foods-subnav a{text-decoration:none;padding:6px 10px;border-radius:8px;border:1px solid transparent;color:#111827}
+  .foods-subnav a:hover{background:#f3f4f6}
+  .foods-subnav a.active{border-color:#d1d5db;background:#fff;box-shadow:0 1px 0 rgba(0,0,0,.03);font-weight:600}
+  .foods-subnav .sep{color:#9ca3af}
+  .foods-subnav .spacer{margin-left:auto}
+</style>

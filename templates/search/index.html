@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "app_base.html" %}
 {% block title %}Master Food List — CKD Diet Tracker{% endblock %}
 
 {% block head_extra %}
@@ -30,192 +30,207 @@
 {% block content %}
 <div id="busy"><div class="box">Working… ⏳</div></div>
 
-<h1>Search USDA Foods</h1>
-<p><a href="{{ url_for('coach.assistant') }}">🧭 Assistant Options</a></p>
-<hr>
+<div class="page-wrapper">
+  <div class="container-xl">
 
-<!-- Search Form (with multi-select checkboxes) -->
-<form action="{{ url_for('search.search') }}" method="get" style="margin-bottom: 10px;">
-  <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
-    <div style="min-width:280px;">
-      <label>Search</label><br>
-      <input name="query" placeholder="e.g., tomato, salmon, crackers" value="{{ query }}" style="width:100%;">
+    <div class="page-header d-print-none">
+      <div class="row align-items-center">
+        <div class="col">
+          <h1 class="page-title">Search USDA Foods</h1>
+          <div class="text-muted mt-1">
+            Search USDA, pick foods, and save them into your Univer food database.
+          </div>
+        </div>
+        <div class="col-auto">
+          <a class="btn btn-outline-primary" href="{{ url_for('univer.univer_foods') }}">
+            → Go to Univer Database
+          </a>
+        </div>
+      </div>
     </div>
 
-    <div>
-      <label>Data Types (choose one or more)</label><br>
-      {% set sel = (search_types or []) %}
-      <label style="margin-right:10px;">
-        <input type="checkbox" name="types" value="SR Legacy" {% if 'SR Legacy' in sel %}checked{% endif %}> SR Legacy
-      </label>
-      <label style="margin-right:10px;">
-        <input type="checkbox" name="types" value="Foundation" {% if 'Foundation' in sel %}checked{% endif %}> Foundation
-      </label>
-      <label style="margin-right:10px;">
-        <input type="checkbox" name="types" value="Survey (FNDDS)" {% if 'Survey (FNDDS)' in sel %}checked{% endif %}> Survey (FNDDS)
-      </label>
-      <label style="margin-right:10px;">
-        <input type="checkbox" name="types" value="Branded" {% if 'Branded' in sel %}checked{% endif %}> Branded
-      </label>
-      <a href="#" id="selectAll" style="margin-left:8px; font-size: 12px;">Select all</a>
-      <a href="#" id="clearAll" style="margin-left:8px; font-size: 12px;">Clear</a>
-    </div>
+    <hr>
 
-    <div>
-      <button type="submit">Search</button>
-    </div>
+    <!-- Search Form (with multi-select checkboxes) -->
+    <form action="{{ url_for('search.search') }}" method="get" style="margin-bottom: 10px;">
+      <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+        <div style="min-width:280px;">
+          <label>Search</label><br>
+          <input name="query" placeholder="e.g., tomato, salmon, crackers" value="{{ query }}" style="width:100%;">
+        </div>
+
+        <div>
+          <label>Data Types (choose one or more)</label><br>
+          {% set sel = (search_types or []) %}
+          <label style="margin-right:10px;">
+            <input type="checkbox" name="types" value="SR Legacy" {% if 'SR Legacy' in sel %}checked{% endif %}> SR Legacy
+          </label>
+          <label style="margin-right:10px;">
+            <input type="checkbox" name="types" value="Foundation" {% if 'Foundation' in sel %}checked{% endif %}> Foundation
+          </label>
+          <label style="margin-right:10px;">
+            <input type="checkbox" name="types" value="Survey (FNDDS)" {% if 'Survey (FNDDS)' in sel %}checked{% endif %}> Survey (FNDDS)
+          </label>
+          <label style="margin-right:10px;">
+            <input type="checkbox" name="types" value="Branded" {% if 'Branded' in sel %}checked{% endif %}> Branded
+          </label>
+          <a href="#" id="selectAll" style="margin-left:8px; font-size: 12px;">Select all</a>
+          <a href="#" id="clearAll" style="margin-left:8px; font-size: 12px;">Clear</a>
+        </div>
+
+        <div>
+          <button type="submit" class="btn btn-primary">Search</button>
+        </div>
+      </div>
+    </form>
+
+    <script>
+      document.getElementById('selectAll')?.addEventListener('click', function (e) {
+        e.preventDefault();
+        document.querySelectorAll('input[name="types"]').forEach(cb => cb.checked = true);
+      });
+      document.getElementById('clearAll')?.addEventListener('click', function (e) {
+        e.preventDefault();
+        document.querySelectorAll('input[name="types"]').forEach(cb => cb.checked = false);
+      });
+    </script>
+
+        {# Show the Pick Foods section any time a search has been run #}
+    {% if query %}
+      <h2>Pick Foods To Add to My Food List</h2>
+
+      <!-- Expose the ranked results (includes branded fields) -->
+      <script id="usda-results-json" type="application/json">{{ results | tojson }}</script>
+
+      {% if results %}
+        <!-- Adds selected items into the session list ONLY (accumulates across searches) -->
+        <form method="post" action="{{ url_for('search.index') }}" id="form-add-selected">
+          <input type="hidden" name="action" value="add">
+          <table>
+            <tr>
+              <th>Select</th>
+              <th>Description</th>
+              <th>Detail</th>
+              <th>Data Type</th>
+            </tr>
+            {% for food in results %}
+            <tr>
+              <td><input type="checkbox" name="selected_fdc" value="{{ food.fdcId }}"></td>
+              <td>{{ food.description }}</td>
+              <td>{{ food.detail }}</td>
+              <td>{{ food.dataType }}</td>
+            </tr>
+            {% endfor %}
+          </table>
+          <button type="submit" class="btn btn-outline-primary mt-2">Add Selected to My Food List</button>
+        </form>
+      {% else %}
+        <p class="small">
+          No USDA items matched this search. Try a more specific phrase (e.g., “large egg raw”).
+        </p>
+      {% endif %}
+    {% endif %}
+
+
+    <hr>
+
+    <h2>Items Found in USDA</h2>
+    <p class="small">
+      Accumulate items across multiple searches here. When ready, click
+      <strong>“Save These Items to the Univer Food List”</strong> to write them into your spreadsheet.
+    </p>
+
+    <form method="post" action="{{ url_for('search.index') }}">
+      <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+        <button type="submit" name="action" value="clear_master" class="btn btn-outline-danger btn-sm">Clear All</button>
+        <button type="submit" name="action" value="remove_master" class="btn btn-outline-secondary btn-sm">Remove Checked</button>
+        <button type="submit" name="action" value="export_luckysheet" class="btn btn-success btn-sm">
+          Save These Items to the Univer Food List
+        </button>
+      </div>
+
+      <table style="margin-top:8px;">
+        <tr>
+          <th></th>
+          <th>Description</th>
+
+          <!-- First 5 columns -->
+          <th>Serving Size</th>
+          <th>Serving Unit</th>
+          <th>Household Label</th>
+          <th>Brand Owner</th>
+
+          <!-- Source column -->
+          <th>Source</th>
+
+          <!-- Featured first, canonical order with Cholesterol -->
+          <th>Na (mg)</th>
+          <th>K (mg)</th>
+          <th>Protein (g)</th>
+          <th>Calories</th>
+          <th>Chol (mg)</th>
+
+          <!-- Rest of canonical order -->
+          <th>Carbs (g)</th>
+          <th>Fat (g)</th>
+          <th>Sat Fat (g)</th>
+          <th>Mono Fat (g)</th>
+          <th>Poly Fat (g)</th>
+          <th>Sugar (g)</th>
+          <th>Calcium (mg)</th>
+          <th>Magnesium (mg)</th>
+          <th>Iron (mg)</th>
+        </tr>
+
+        {% for f in my_food_list %}
+          {% set comp = f.computed or {} %}
+          {% set pn = comp.portion_nutrients or {} %}
+          <tr>
+            <td><input type="checkbox" name="remove_id" value="{{ f.fdcId }}"></td>
+            <td>{{ f.description }}</td>
+
+            {% if f.dataType == 'SR Legacy' %}
+              <td>100</td>
+              <td>g</td>
+            {% else %}
+              <td>{{ f.servingSize or '' }}</td>
+              <td>{{ f.servingSizeUnit or '' }}</td>
+            {% endif %}
+
+            <td>{{ f.householdServingFullText or '' }}</td>
+            <td>{{ f.brandOwner or '' }}</td>
+
+            <td>
+              {% if f.dataType == 'Branded' %}
+                branded
+              {% elif f.dataType == 'SR Legacy' %}
+                legacy
+              {% else %}
+                {{ f.dataType or '' }}
+              {% endif %}
+            </td>
+
+            <!-- Canonical order with Cholesterol -->
+            <td>{{ (pn.get('Sodium', 0))|round(0) }}</td>
+            <td>{{ (pn.get('Potassium', 0))|round(0) }}</td>
+            <td>{{ (pn.get('Protein', 0))|round(2) }}</td>
+            <td>{{ (pn.get('Calories', 0))|round(0) }}</td>
+            <td>{{ (pn.get('Cholesterol', 0))|round(0) }}</td>
+
+            <td>{{ (pn.get('Carbs', 0))|round(2) }}</td>
+            <td>{{ (pn.get('Fat', 0))|round(2) }}</td>
+            <td>{{ (pn.get('Sat Fat', 0))|round(2) }}</td>
+            <td>{{ (pn.get('Mono Fat', 0))|round(2) }}</td>
+            <td>{{ (pn.get('Poly Fat', 0))|round(2) }}</td>
+            <td>{{ (pn.get('Sugar', 0))|round(2) }}</td>
+            <td>{{ (pn.get('Calcium', 0))|round(0) }}</td>
+            <td>{{ (pn.get('Magnesium', 0))|round(0) }}</td>
+            <td>{{ (pn.get('Iron', 0))|round(2) }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    </form>
+
   </div>
-</form>
-
-<script>
-  document.getElementById('selectAll')?.addEventListener('click', function (e) {
-    e.preventDefault();
-    document.querySelectorAll('input[name="types"]').forEach(cb => cb.checked = true);
-  });
-  document.getElementById('clearAll')?.addEventListener('click', function (e) {
-    e.preventDefault();
-    document.querySelectorAll('input[name="types"]').forEach(cb => cb.checked = false);
-  });
-</script>
-
-{% if results %}
-  <h2>Pick Foods To Add to My Food List</h2>
-
-  <!-- Expose the full results (includes branded fields) -->
-  <script id="usda-results-json" type="application/json">{{ results | tojson }}</script>
-
-  <!-- Adds selected items into the session list ONLY (accumulates across searches) -->
-  <form method="post" action="{{ url_for('search.index') }}" id="form-add-selected">
-    <input type="hidden" name="action" value="add">
-    <table>
-      <tr>
-        <th>Select</th>
-        <th>Description</th>
-        <th>Detail</th>
-        <th>Data Type</th>
-      </tr>
-      {% for food in results %}
-      <tr>
-        <td><input type="checkbox" name="selected_fdc" value="{{ food.fdcId }}"></td>
-        <td>{{ food.description }}</td>
-        <td>{{ food.detail }}</td>
-        <td>{{ food.dataType }}</td>
-      </tr>
-      {% endfor %}
-    </table>
-    <button type="submit">Add Selected to My Food List</button>
-  </form>
-
-  <!-- Pagination -->
-  <form action="{{ url_for('search.search') }}" method="get" style="margin-top: 8px;">
-    <input type="hidden" name="query" value="{{ query }}">
-    {% for t in sel %}
-      <input type="hidden" name="types" value="{{ t }}">
-    {% endfor %}
-    <button type="submit" name="page" value="{{ page - 1 }}" {% if page <= 1 %}disabled{% endif %}>← Prev</button>
-    <button type="submit" name="page" value="{{ page + 1 }}">Next →</button>
-  </form>
-{% endif %}
-
-<hr>
-
-<h2>Items Found in USDA</h2>
-<p class="small">
-  Accumulate items across multiple searches here. When ready, click
-  <strong>“Save These Items to the luckysheet database”</strong> to write them into your spreadsheet.
-</p>
-
-<form method="post" action="{{ url_for('search.index') }}">
-  <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
-    <button type="submit" name="action" value="clear_master">Clear All</button>
-    <button type="submit" name="action" value="remove_master">Remove Checked</button>
-    <button type="submit" name="action" value="export_luckysheet">
-      Save These Items to the luckysheet database
-    </button>
-  </div>
-
-  <table style="margin-top:8px;">
-    <tr>
-      <th></th>
-      <th>Description</th>
-
-      <!-- Keep first 5 columns -->
-      <th>Serving Size</th>
-      <th>Serving Unit</th>
-      <th>Household Label</th>
-      <th>Brand Owner</th>
-
-      <!-- New 6th column in place of "Choose Unit" -->
-      <th>Source</th>
-
-      <!-- Featured first -->
-      <th>Na (mg)</th>
-      <th>K (mg)</th>
-      <th>Protein (g)</th>
-      <th>Calories</th>
-
-      <!-- Full remaining list -->
-      <th>Carbs (g)</th>
-      <th>Fat (g)</th>
-      <th>Sat Fat (g)</th>
-      <th>Mono Fat (g)</th>
-      <th>Poly Fat (g)</th>
-      <th>Sugar (g)</th>
-      <th>Calcium (mg)</th>
-      <th>Magnesium (mg)</th>
-      <th>Iron (mg)</th>
-    </tr>
-
-    {% for f in my_food_list %}
-      {# portion_nutrients still come from the server; we just display them #}
-      {% set comp = f.computed or {} %}
-      {% set pn = comp.portion_nutrients or {} %}
-      <tr>
-        <td><input type="checkbox" name="remove_id" value="{{ f.fdcId }}"></td>
-        <td>{{ f.description }}</td>
-
-        {# Serving size and unit: 100 g for legacy, label values for branded/others #}
-        {% if f.dataType == 'SR Legacy' %}
-          <td>100</td>
-          <td>g</td>
-        {% else %}
-          <td>{{ f.servingSize or '' }}</td>
-          <td>{{ f.servingSizeUnit or '' }}</td>
-        {% endif %}
-
-        <td>{{ f.householdServingFullText or '' }}</td>
-        <td>{{ f.brandOwner or '' }}</td>
-
-        <td>
-          {% if f.dataType == 'Branded' %}
-            branded
-          {% elif f.dataType == 'SR Legacy' %}
-            legacy
-          {% else %}
-            {{ f.dataType or '' }}
-          {% endif %}
-        </td>
-
-        <td>{{ (pn.get('Sodium', 0))|round(0) }}</td>
-        <td>{{ (pn.get('Potassium', 0))|round(0) }}</td>
-        <td>{{ (pn.get('Protein', 0))|round(2) }}</td>
-        <td>{{ (pn.get('Calories', 0))|round(0) }}</td>
-
-        <td>{{ (pn.get('Carbs', 0))|round(2) }}</td>
-        <td>{{ (pn.get('Fat', 0))|round(2) }}</td>
-        <td>{{ (pn.get('Sat Fat', 0))|round(2) }}</td>
-        <td>{{ (pn.get('Mono Fat', 0))|round(2) }}</td>
-        <td>{{ (pn.get('Poly Fat', 0))|round(2) }}</td>
-        <td>{{ (pn.get('Sugar', 0))|round(2) }}</td>
-        <td>{{ (pn.get('Calcium', 0))|round(0) }}</td>
-        <td>{{ (pn.get('Magnesium', 0))|round(0) }}</td>
-        <td>{{ (pn.get('Iron', 0))|round(2) }}</td>
-      </tr>
-    {% endfor %}
-  </table>
-</form>
-
-<p><a href="{{ url_for('luckysheet_page') }}">→ Go to Luckysheet</a></p>
-
-<!-- No client-side Luckysheet append here; export is server-side via action=export_luckysheet -->
+</div>
 {% endblock %}

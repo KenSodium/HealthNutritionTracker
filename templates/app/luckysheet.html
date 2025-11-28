@@ -1,0 +1,334 @@
+{% extends "app_base.html" %}
+{% block title %}Luckysheet — Foods (per-user saved){% endblock %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@2.1.13/dist/plugins/css/plugins.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@2.1.13/dist/plugins/plugins.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/luckysheet@2.1.13/dist/css/luckysheet.css">
+
+  <style>
+    #sheet { width: 100%; height: calc(75vh - 220px); }
+    pre.debug-json { max-height: 240px; overflow:auto; background:#0f172a; color:#e5e7eb; padding:12px; border-radius:8px; }
+  </style>
+
+  <script>
+    // Expose the session list to JS
+    window.__MY_FOODS__ = {{ (session.get('my_food_list') or []) | tojson }};
+    // Guard flag: when true, boot() will NOT reseed from session after a reset
+    window.__NO_SESSION_SEED__ = window.__NO_SESSION_SEED__ || false;
+  </script>
+{% endblock %}
+
+{% block content %}
+  <div class="page-wrapper">
+    <div class="container-xl">
+      <div class="page-header d-print-none">
+        <div class="row align-items-center">
+          <div class="col">
+            <h2 class="page-title">Foods (Luckysheet)</h2>
+            <div class="text-muted mt-1">
+              Saved <em>per user</em> via <code>/api/luckysheet</code>. Daily Diary reads this same workbook.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-3">
+        <div class="card-body">
+          <details>
+            <summary class="cursor-pointer">Debug: session["my_food_list"] (click to expand)</summary>
+            <pre id="debug-foods" class="debug-json mt-2">{ loading… }</pre>
+          </details>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body p-3 border-bottom">
+          <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-outline" id="btn-save-local">Save (local)</button>
+            <button class="btn btn-outline" id="btn-load-local">Load (local)</button>
+            <div class="vr mx-2"></div>
+            <button class="btn btn-outline" id="btn-save-server" title="POST /api/luckysheet">Save (server)</button>
+            <button class="btn btn-outline" id="btn-load-server" title="GET /api/luckysheet">Load (server)</button>
+            <div class="vr mx-2"></div>
+            <button class="btn btn-warning" id="btn-reset-server" title="Rebuild server workbook with current headers/freeze only">
+              Reset workbook (server)
+            </button>
+            <div class="vr mx-2"></div>
+            <button class="btn btn-outline" id="btn-download-json">Download workbook (JSON)</button>
+            <input type="file" id="file-upload-json" style="display:none" accept="application/json">
+            <button class="btn btn-outline" id="btn-upload-json">Upload workbook (JSON)</button>
+
+            <span class="text-muted small ms-2">Top rows are merged headers & frozen.</span>
+          </div>
+        </div>
+        <div id="sheet"></div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/luckysheet@2.1.13/dist/plugins/js/plugin.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/luckysheet@2.1.13/dist/luckysheet.umd.js"></script>
+
+
+  <script>
+    // ---------- DEBUG ----------
+    (function showDebugFoods(){
+      const el = document.getElementById("debug-foods");
+      try { el.textContent = JSON.stringify(window.__MY_FOODS__, null, 2); }
+      catch(e) { el.textContent = "Failed to render __MY_FOODS__: " + (e?.message || e); }
+    })();
+
+    // ---------- Columns & headers ----------
+    // Row 1 (merged super-headers)
+    const HEAD1 = [
+      "Food",                 // c0 (rs=2)
+      "Serving Info", null, null, null,   // c1..c4 merged
+      "Nutrients", null,null,null,null,null,null,null,null,null,null,null,null // c5..c17 merged
+    ];
+
+    // Row 2 (actual column labels)
+    const HEAD2 = [
+      "Food",                // c0
+      "Serving Size",        // c1
+      "Serving Unit",        // c2
+      "Number Label",        // c3
+      "Label",               // c4 (household serving text)
+      "Sodium (mg)",         // c5
+      "Potassium (mg)",      // c6
+      "Protein (g)",         // c7
+      "Carbs (g)",           // c8
+      "Fat (g)",             // c9
+      "Sat Fat (g)",         // c10
+      "Mono Fat (g)",        // c11
+      "Poly Fat (g)",        // c12
+      "Sugar (g)",           // c13
+      "Calcium (mg)",        // c14
+      "Magnesium (mg)",      // c15
+      "Iron (mg)",           // c16
+      "Calories"             // c17
+    ];
+
+    // Convert simple values to Luckysheet cell objects
+    const toLucky = arr => arr.map(row => row.map(v => v==null ? null : ({ v })));
+
+    // Merged header regions
+    const mergesObj = {
+      "0_0": { r:0, c:0, rs:2, cs:1 },   // "Food" spans rows 0..1, col 0
+      "0_1": { r:0, c:1, rs:1, cs:4 },   // "Serving Info" spans row 0, cols 1..4
+      "0_5": { r:0, c:5, rs:1, cs:13 }   // "Nutrients" spans row 0, cols 5..17
+    };
+
+    // Column widths (18 columns total)
+    const COL_WIDTHS = [
+      240,  // Food
+      110,  // Serving Size
+      120,  // Serving Unit
+      120,  // Number Label
+      200,  // Label
+      120, 130, 110, 110, 100, 120, 120, 120, 110, 120, 130, 110, 110 // nutrients
+    ];
+    const columnlen = Object.fromEntries(COL_WIDTHS.map((w,i)=>[i,w]));
+
+    // Build body rows from session["my_food_list"]
+    function rowsFromMyFoods(list) {
+      const wanted = ["Sodium","Potassium","Protein","Carbs","Fat",
+                      "Sat Fat","Mono Fat","Poly Fat","Sugar",
+                      "Calcium","Magnesium","Iron","Calories"];
+
+      return (list || []).map(f => {
+        const name = (f.description || "").trim() || "(item)";
+        const servingSize = (typeof f.servingSize === "number" && isFinite(f.servingSize)) ? f.servingSize : null;
+        const servingUnit = (f.servingSizeUnit || "") || null;
+        const labelText   = (f.householdServingFullText || "") || null;
+        const numberLabel = null; // computed elsewhere if needed
+
+        const n = (f.nutrients || f.per100 || {});
+        const nums = wanted.map(k => {
+          const v = n[k];
+          return (typeof v === "number" && isFinite(v)) ? v : 0;
+        });
+
+        return [name, servingSize, servingUnit, numberLabel, labelText, ...nums];
+      });
+    }
+
+    // Seed sheet: freeze top 3 rows (0,1,2) and left-most column (A)
+    const seedSheet = {
+      name: "Foods",
+      index: 0,
+      status: 1,
+      order: 0,
+
+      data: toLucky([HEAD1, HEAD2]),               // rows added later
+      config: {
+    merge: mergesObj,
+    rowlen: { 0: 28, 1: 28, 2: 28 },
+    columnlen,
+
+  },
+
+    };
+
+    function renderWorkbook(dataArray) {
+      luckysheet.destroy();
+      luckysheet.create({
+        container: "sheet",
+        lang: "en",
+        showinfobar: false,
+        showsheetbar: true,
+        showtoolbar: true,
+        showstatisticBar: true,
+        sheetFormulaBar: true,
+        data: dataArray
+      });
+    }
+
+    // ---------- Boot ----------
+    async function boot(){
+      let serverJson = null;
+      try {
+        const r = await fetch("/api/luckysheet");
+        if (r.ok) serverJson = await r.json();
+      } catch(e){ console.warn("GET /api/luckysheet failed", e); }
+
+      const serverHasData = Array.isArray(serverJson?.data) && serverJson.data.length > 0;
+
+      if (!serverHasData) {
+        // Respect flag: skip session reseed if __NO_SESSION_SEED__ is true
+        const canSeedFromSession = !window.__NO_SESSION_SEED__;
+        const sessionRows = canSeedFromSession ? rowsFromMyFoods(window.__MY_FOODS__ || []) : [];
+        seedSheet.data = toLucky([HEAD1, HEAD2, ...sessionRows]);
+        renderWorkbook([seedSheet]);
+
+        // Persist immediately so other pages see the same workbook
+        try { await saveServer(true); } catch(e){}
+      } else {
+        renderWorkbook(serverJson.data);
+      }
+    }
+
+    // ---------- SAVE helpers ----------
+    function commitActiveEdit() {
+      const ta = document.querySelector('#luckysheet-input-box textarea');
+      if (ta && document.activeElement === ta) ta.blur();
+    }
+
+    async function saveServer(silent=false) {
+      commitActiveEdit();
+      await new Promise(res => setTimeout(res, 50));
+      const payload = luckysheet.toJson();
+      const r = await fetch("/api/luckysheet", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(payload)
+      });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+
+      const r2 = await fetch("/api/luckysheet");
+      if (!r2.ok) throw new Error("Reload HTTP " + r2.status);
+      const j2 = await r2.json();
+      if (Array.isArray(j2?.data)) renderWorkbook(j2.data);
+      if (!silent) alert("Saved to server.");
+    }
+
+    // ---------- Init ----------
+    boot();
+
+    // ---------- Buttons ----------
+    const LS_KEY = "luckysheet_foods_workbook_v1";
+
+    document.getElementById("btn-save-local")?.addEventListener("click", ()=>{
+      commitActiveEdit();
+      setTimeout(()=>{
+        localStorage.setItem(LS_KEY, JSON.stringify(luckysheet.toJson()));
+        alert("Saved to localStorage.");
+      }, 50);
+    });
+
+    document.getElementById("btn-load-local")?.addEventListener("click", ()=>{
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return alert("No saved workbook in localStorage.");
+      try {
+        const j = JSON.parse(raw);
+        renderWorkbook(j.data);
+      } catch(e){ alert("Load failed."); }
+    });
+
+    document.getElementById("btn-save-server")?.addEventListener("click", async ()=>{
+      try { await saveServer(false); }
+      catch(e) { alert("Server save failed: " + e.message); }
+    });
+
+    document.getElementById("btn-load-server")?.addEventListener("click", async ()=>{
+      try{
+        const r = await fetch("/api/luckysheet");
+        if(!r.ok) throw new Error("HTTP "+r.status);
+        const j = await r.json();
+        renderWorkbook(j.data || j);
+      }catch(e){ alert("Server load failed: "+e.message); }
+    });
+
+    // TRUE RESET: rebuild server workbook with current headers/freeze only
+    // TRUE RESET: ask server to rebuild workbook with its own headers/freeze
+document.getElementById("btn-reset-server")?.addEventListener("click", async ()=>{
+  if (!confirm("This will reset the workbook structure (headers/freeze) and clear rows. Continue?")) return;
+  try {
+    const res = await fetch("/api/luckysheet/reset", { method: "POST" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    await boot();  // reload the freshly seeded workbook
+    alert("Server workbook reset.");
+  } catch (e) {
+    alert("Reset failed: " + e.message);
+  }
+});
+
+
+    // Backup / restore helpers (client-side JSON)
+    document.getElementById("btn-download-json")?.addEventListener("click", ()=>{
+      try {
+        const j = luckysheet.toJson();
+        const blob = new Blob([JSON.stringify(j, null, 2)], {type:"application/json"});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `luckysheet_backup_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.json`;
+        document.body.appendChild(a); a.click(); a.remove();
+      } catch(e) { alert("Download failed: "+e.message); }
+    });
+
+    document.getElementById("btn-upload-json")?.addEventListener("click", ()=>{
+      document.getElementById("file-upload-json").click();
+    });
+
+    document.getElementById("file-upload-json")?.addEventListener("change", async (e)=>{
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const j = JSON.parse(text);
+        await fetch("/api/luckysheet", {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify(j)
+        });
+        const r = await fetch("/api/luckysheet");
+        const j2 = await r.json();
+        renderWorkbook(j2.data || j2);
+        alert("Workbook uploaded.");
+      } catch (err) {
+        alert("Upload failed: "+err.message);
+      } finally {
+        e.target.value = "";
+      }
+    });
+
+    // Autosave when leaving
+    window.addEventListener("beforeunload", ()=>{
+      try { saveServer(true); } catch(_) {}
+    });
+  </script>
+{% endblock %}

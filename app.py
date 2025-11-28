@@ -932,6 +932,8 @@ def create_app():
     from app_blueprints.manual import manual_bp
     from app_blueprints.luckysheet_api import bp as luckysheet_api_bp
     from app_blueprints.history_api import history_bp
+    from app_blueprints.univer import univer_bp
+    from app_blueprints.label_entry import label_bp
 
     app.register_blueprint(reports_bp, url_prefix="/reports")
     app.register_blueprint(daily_bp)
@@ -941,6 +943,8 @@ def create_app():
     app.register_blueprint(manual_bp)
     app.register_blueprint(luckysheet_api_bp)
     app.register_blueprint(history_bp)
+    app.register_blueprint(univer_bp)
+    app.register_blueprint(label_bp)
     print("=== URL MAP ===")
     print(app.url_map)
 
