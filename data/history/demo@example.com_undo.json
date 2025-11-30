@@ -1,0 +1,75 @@
+{
+  "days": [
+    {
+      "date": "2025-11-07",
+      "totals": {
+        "Sodium": 147,
+        "Potassium": 3080,
+        "Protein": 68.3,
+        "Calories": 832,
+        "Carbs": 85,
+        "Fat": 32,
+        "Sat Fat": 5.5,
+        "Mono Fat": 7.7,
+        "Poly Fat": 15.3,
+        "Sugar": 32.9,
+        "Calcium": 271,
+        "Magnesium": 382,
+        "Iron": 7.6
+      },
+      "entries": [
+        {
+          "food": "Tomato powder",
+          "amount": 0.75,
+          "sodium_mg": 101,
+          "potassium_mg": 1448,
+          "protein_g": 9.68,
+          "calories": 227,
+          "carbs_g": 56.03,
+          "fat_g": 0.33,
+          "sat_fat_g": 0.05,
+          "mono_fat_g": 0.05,
+          "poly_fat_g": 0.13,
+          "sugar_g": 32.92,
+          "calcium_mg": 125,
+          "magnesium_mg": 134,
+          "iron_mg": 3.42
+        },
+        {
+          "food": "Fish, salmon, Atlantic, farmed, raw",
+          "amount": 0.75,
+          "sodium_mg": 44,
+          "potassium_mg": 272,
+          "protein_g": 15.3,
+          "calories": 156,
+          "carbs_g": 0,
+          "fat_g": 10.05,
+          "sat_fat_g": 2.29,
+          "mono_fat_g": 2.83,
+          "poly_fat_g": 2.92,
+          "sugar_g": 0,
+          "calcium_mg": 7,
+          "magnesium_mg": 20,
+          "iron_mg": 0.26
+        },
+        {
+          "food": "Soybeans, mature seeds, dry roasted",
+          "amount": 1,
+          "sodium_mg": 2,
+          "potassium_mg": 1360,
+          "protein_g": 43.3,
+          "calories": 449,
+          "carbs_g": 29,
+          "fat_g": 21.6,
+          "sat_fat_g": 3.13,
+          "mono_fat_g": 4.78,
+          "poly_fat_g": 12.2,
+          "sugar_g": 0,
+          "calcium_mg": 140,
+          "magnesium_mg": 228,
+          "iron_mg": 3.95
+        }
+      ]
+    }
+  ]
+}

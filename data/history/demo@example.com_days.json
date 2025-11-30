@@ -1,0 +1,73 @@
+[
+  {
+    "date": "2025-11-07",
+    "totals": {
+      "Sodium": 147,
+      "Potassium": 1575,
+      "Protein": 37.7,
+      "Calories": 427,
+      "Carbs": 37.4,
+      "Fat": 16,
+      "Sat Fat": 3.7,
+      "Mono Fat": 5.4,
+      "Poly Fat": 4.4,
+      "Sugar": 21.9,
+      "Calcium": 99,
+      "Magnesium": 133,
+      "Iron": 2.8
+    },
+    "entries": [
+      {
+        "food": "Tomato powder",
+        "amount": 0.5,
+        "sodium_mg": 67,
+        "potassium_mg": 965,
+        "protein_g": 6.45,
+        "calories": 151,
+        "carbs_g": 37.35,
+        "fat_g": 0.22,
+        "sat_fat_g": 0.03,
+        "mono_fat_g": 0.03,
+        "poly_fat_g": 0.09,
+        "sugar_g": 21.95,
+        "calcium_mg": 83,
+        "magnesium_mg": 89,
+        "iron_mg": 2.28
+      },
+      {
+        "food": "Fish, salmon, Atlantic, farmed, raw",
+        "amount": 0.75,
+        "sodium_mg": 44,
+        "potassium_mg": 272,
+        "protein_g": 15.3,
+        "calories": 156,
+        "carbs_g": 0,
+        "fat_g": 10.05,
+        "sat_fat_g": 2.29,
+        "mono_fat_g": 2.83,
+        "poly_fat_g": 2.92,
+        "sugar_g": 0,
+        "calcium_mg": 7,
+        "magnesium_mg": 20,
+        "iron_mg": 0.26
+      },
+      {
+        "food": "Fish, salmon, coho, farmed, raw",
+        "amount": 0.75,
+        "sodium_mg": 35,
+        "potassium_mg": 338,
+        "protein_g": 15.98,
+        "calories": 120,
+        "carbs_g": 0,
+        "fat_g": 5.75,
+        "sat_fat_g": 1.36,
+        "mono_fat_g": 2.5,
+        "poly_fat_g": 1.4,
+        "sugar_g": 0,
+        "calcium_mg": 9,
+        "magnesium_mg": 23,
+        "iron_mg": 0.26
+      }
+    ]
+  }
+]
