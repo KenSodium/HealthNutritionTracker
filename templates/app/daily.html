@@ -197,21 +197,33 @@
 <div class="page-wrapper">
   <div class="container-xl">
     <div class="page-header d-print-none">
-      <div class="row align-items-center">
-        <div class="col">
-          <h2 class="page-title">Daily Diary</h2>
-          <div class="text-muted mt-1">Log what you ate — fast.</div>
+  <div class="row align-items-center">
+    <div class="col">
+      <h2 class="page-title">Daily Diary</h2>
+      <div class="text-muted mt-1">Log what you ate — fast.</div>
+
+      <div class="mt-3 d-flex flex-wrap align-items-center gap-3">
+        <div class="d-flex flex-wrap align-items-baseline gap-2">
+          <span class="fw-semibold">Date:</span>
+          <span class="h4 mb-0" id="diary-date-display"></span>
+          <span class="text-muted ms-2">You are entering data for this date.</span>
         </div>
-        <div class="col-auto ms-auto d-print-none">
-          <div class="date-controls">
-            <button class="btn btn-outline" id="btn-prev" type="button">←</button>
-            <input class="form-control" type="date" id="day-picker" style="width: 180px;" value="{{ today }}">
-            <button class="btn btn-outline" id="btn-next" type="button">→</button>
-            <a class="btn btn-primary" href="{{ url_for('app_daily') }}">Today</a>
-          </div>
-        </div>
+
+        <button
+          type="button"
+          class="btn btn-success"
+          id="btn-save-history"
+        >
+          Save to History
+        </button>
       </div>
+
+      <!-- Hidden input so the existing JS still knows the current date -->
+      <input type="hidden" id="day-picker" value="{{ today }}">
     </div>
+  </div>
+</div>
+
 
     <div class="daily-layout">
       <!-- LEFT: Foods table -->
@@ -270,13 +282,13 @@
         <div class="card-body" id="totals-panel"></div>
 
         <div class="card-body pt-0" id="all-totals-wrap">
-          <button type="button" class="btn btn-success w-100 mb-2" id="btn-save-history">Save to History</button>
           <hr class="my-2">
           <div class="fw-semibold mb-2">All nutrients (live totals)</div>
           <table class="table table-sm mb-0">
             <tbody id="all-totals-body"></tbody>
           </table>
         </div>
+
 
         <div class="card-footer d-grid gap-2">
           <a class="btn btn-outline" href="{{ url_for('reports_day') }}">View day report</a>
@@ -1049,32 +1061,44 @@
   function toIsoDate(d) {
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
+    const dd = String(d.getDate() + 0).padStart(2, "0");
     return `${yyyy}-${mm}-${dd}`;
   }
 
-  function initDate() {
-    const picker = document.getElementById("day-picker");
-
-    if (picker) {
-      if (!picker.value) {
-        const today = new Date();
-        picker.value = toIsoDate(today);
-      }
-      DATE_ISO = picker.value;
-
-      picker.addEventListener("change", () => {
-        DATE_ISO = picker.value || DATE_ISO;
-        loadFullDayForCurrentDate();
-      });
-    } else {
-      const today = new Date();
-      DATE_ISO = toIsoDate(today);
+  function updateDisplayedDate() {
+    const span = document.getElementById("diary-date-display");
+    if (span && DATE_ISO) {
+      span.textContent = DATE_ISO;
     }
-
-    document.getElementById("btn-prev")?.addEventListener("click", () => shiftDate(-1));
-    document.getElementById("btn-next")?.addEventListener("click", () => shiftDate(+1));
   }
+
+  function initDate() {
+  const picker = document.getElementById("day-picker");
+
+  if (picker) {
+    // If template didn't give us a value, default to today in ISO form
+    if (!picker.value) {
+      const today = new Date();
+      picker.value = toIsoDate(today);
+    }
+    DATE_ISO = picker.value;
+    updateDisplayedDate();  // <-- IMPORTANT
+
+    picker.addEventListener("change", () => {
+      DATE_ISO = picker.value || DATE_ISO;
+      updateDisplayedDate();  // <-- IMPORTANT
+      loadFullDayForCurrentDate();
+    });
+  } else {
+    const today = new Date();
+    DATE_ISO = toIsoDate(today);
+    updateDisplayedDate();    // <-- IMPORTANT
+  }
+
+  // Prev/next buttons no longer exist, but leaving this is harmless
+  document.getElementById("btn-prev")?.addEventListener("click", () => shiftDate(-1));
+  document.getElementById("btn-next")?.addEventListener("click", () => shiftDate(+1));
+}
 
   function shiftDate(delta) {
     const picker = document.getElementById("day-picker");
@@ -1086,12 +1110,14 @@
     const newIso = toIsoDate(d);
     DATE_ISO = newIso;
     if (picker) picker.value = newIso;
+    updateDisplayedDate();
 
     console.log("shiftDate", { delta, baseStr, newIso });
 
     if (typeof loadFullDayForCurrentDate === "function") {
       loadFullDayForCurrentDate();
     }
+
   }
 
   // ================= API wiring =================
