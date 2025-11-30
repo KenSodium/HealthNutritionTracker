@@ -1,0 +1,144 @@
+{# templates/app/univer_foods.html #}
+{% extends "app_base.html" %}
+{% block title %}My Food List — Univer{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='univer/univer.css') }}">
+<style>
+  /* Override Univer’s global body flex so navbar + sheet stack vertically */
+  body {
+    display: block !important;
+    flex-direction: column !important;
+  }
+</style>
+<style>
+  .page-body.univer-page > .container-fluid {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  /* Shell that spans the full width under the navbar */
+  .univer-shell {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  :root {
+    /* starting width of the sheet */
+    --unver-width: 65%;
+  }
+
+  .univer-inner {
+    /* use the variable instead of a hard-coded width */
+    width: var(--unver-width);
+    max-width: 1200px;
+    margin: 0 auto;
+    height: 90vh;   /* you can still tweak this by hand */
+  }
+
+  /* Univer mounts here and fills the inner wrapper */
+  #app {
+    width: 100%;
+    height: 80vh;        /* tweak height: 60vh, 80vh, etc. */
+    border-top: 1px solid #ccc;
+    contain: layout paint size;
+    overflow: hidden;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrapper univer-shell">
+  <div class="page-body univer-page">
+    <div class="container-fluid">
+      <div class="univer-inner">
+        <div class="row align-items-center mb-2">
+          <div class="col">
+            <h2 class="page-title mb-0">My Food List (Univer Sheet)</h2>
+            <div class="text-muted">
+              Univer-based spreadsheet, with automatic backups of the current table.
+            </div>
+          </div>
+          <div class="col-auto text-end">
+            <button id="btn-univer-save" class="btn btn-primary mb-2">
+              Save My Food List
+            </button>
+
+            {# Backup restore controls #}
+            <div>
+              {% if backups and backups|length > 0 %}
+                <form method="post"
+                      action="{{ url_for('univer.restore_backup') }}"
+                      class="d-flex align-items-center gap-2">
+                  <select name="backup_name" class="form-select form-select-sm">
+                    {% for b in backups %}
+                      <option value="{{ b.name }}">{{ b.label }}</option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="btn btn-outline-secondary btn-sm">
+                    Restore Backup
+                  </button>
+                </form>
+                <div class="text-muted small mt-1">
+                  Choose a backup version and restore if you need to undo changes.
+                </div>
+              {% else %}
+                <div class="text-muted small">
+                  No backups yet. A backup is created each time you save.
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Univer mounts here -->
+        <div id="app"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script type="module" src="{{ url_for('static', filename='univer/univer.js') }}"></script>
+  <script>
+    // Ctrl + mouse wheel over the sheet changes its width (% of page)
+
+    // starting value (match the CSS variable: 65% -> 0.65)
+    let univerWidth = 0.65;
+    const MIN_W = 0.50;  // don’t let it get narrower than 50% of page
+    const MAX_W = 1.20;  // don’t let it get wider than 120% of page
+    const STEP  = 0.05;  // each wheel tick changes width by 5%
+
+    document.addEventListener('wheel', function (e) {
+      const inner = document.querySelector('.univer-inner');
+      if (!inner) return;
+
+      // Only react when:
+      //   1) Ctrl key is pressed
+      //   2) mouse is over the univer area
+      if (!e.ctrlKey) return;
+      if (!inner.contains(e.target)) return;
+
+      // Don’t let the browser do its own zoom
+      e.preventDefault();
+
+      // deltaY < 0  => wheel up  => make wider
+      // deltaY > 0  => wheel down => make narrower
+      if (e.deltaY < 0) {
+        univerWidth = Math.min(MAX_W, univerWidth + STEP);
+      } else if (e.deltaY > 0) {
+        univerWidth = Math.max(MIN_W, univerWidth - STEP);
+      }
+
+      // Apply new width to the CSS variable (convert 0.65 -> "65%")
+      const pct = (univerWidth * 100).toFixed(0) + '%';
+      document.documentElement.style.setProperty('--unver-width', pct);
+      // (You’ll see the sheet smoothly resize left/right)
+    }, { passive: false });
+  </script>
+{% endblock %}

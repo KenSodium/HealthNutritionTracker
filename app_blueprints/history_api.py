@@ -6,15 +6,17 @@ from pathlib import Path
 import csv
 import io
 
-from nutrition.services import history_store
+from nutrition.services import history_store, full_day_store
 
 # Keep blueprint name "history" so url_for('history.history_page') works
 history_bp = Blueprint("history", __name__, url_prefix="/history")
 
 # ------------------------ User-id resolution ------------------------
 
+
 def _history_dir() -> Path:
     return Path(current_app.instance_path) / "history"
+
 
 def _file_for(user_id: str) -> Path:
     safe = user_id.replace("/", "_").replace("\\", "_")
@@ -22,19 +24,23 @@ def _file_for(user_id: str) -> Path:
     p.mkdir(parents=True, exist_ok=True)
     return p / f"{safe}.json"
 
+
 def _candidate_ids() -> List[str]:
     ids: List[str] = []
     cfg = current_app.config.get("HISTORY_USER_ID")
     if cfg:
         ids.append(str(cfg))
-    ids.extend([
-        "demo",
-        "demo@example.com",
-        "user",
-        "local",
-        "default",
-    ])
+    ids.extend(
+        [
+            "demo",
+            "demo@example.com",
+            "user",
+            "local",
+            "default",
+        ]
+    )
     return ids
+
 
 def _resolve_user_id() -> str:
     """
@@ -69,7 +75,11 @@ def _resolve_user_id() -> str:
     hdir = _history_dir()
     if hdir.exists():
         jsons = sorted(
-            (p for p in hdir.glob("*.json") if p.is_file() and p.stat().st_size > 2),
+            (
+                p
+                for p in hdir.glob("*.json")
+                if p.is_file() and p.stat().st_size > 2
+            ),
             key=lambda p: p.stat().st_mtime,
             reverse=True,
         )
@@ -79,14 +89,18 @@ def _resolve_user_id() -> str:
     # 5) Fallback
     return preferred
 
+
 # ----------------------------- Pages -------------------------------
+
 
 @history_bp.get("/", endpoint="history_page")
 def history_page():
     user_id = _resolve_user_id()
     days = history_store.list_days(current_app.instance_path, user_id)
     try:
-        file_path = history_store.history_file_path(current_app.instance_path, user_id)
+        file_path = history_store.history_file_path(
+            current_app.instance_path, user_id
+        )
     except AttributeError:
         file_path = str(_file_for(user_id))
     return render_template(
@@ -94,12 +108,11 @@ def history_page():
         days=days,
         uid=user_id,
         file_path=file_path,
-        # REMOVE this line if present:
-        # debug=request.args.get("debug") in ("1", "true"),
     )
 
 
 # ---------------------- API: save / get / csv ----------------------
+
 
 @history_bp.post("/api/day/save")
 def api_day_save():
@@ -109,11 +122,20 @@ def api_day_save():
     entries = payload.get("entries", [])
 
     if not date:
-        return jsonify({"ok": False, "error": "Missing 'date'"}), 400
+        return (
+            jsonify({"ok": False, "error": "Missing 'date'"}),
+            400,
+        )
     if not isinstance(totals, dict):
-        return jsonify({"ok": False, "error": "'totals' must be an object"}), 400
+        return (
+            jsonify({"ok": False, "error": "'totals' must be an object"}),
+            400,
+        )
     if not isinstance(entries, list):
-        return jsonify({"ok": False, "error": "'entries' must be a list"}), 400
+        return (
+            jsonify({"ok": False, "error": "'entries' must be a list"}),
+            400,
+        )
 
     user_id = _resolve_user_id()
 
@@ -122,7 +144,6 @@ def api_day_save():
     history_store.upsert_day(current_app.instance_path, user_id, day_totals)
 
     # 2) Save/overwrite full-day entries (separate DB shown at /history/full)
-    from nutrition.services import full_day_store
     day_full = {"date": date, "entries": entries}
     full_day_store.upsert_day(current_app.instance_path, user_id, day_full)
 
@@ -133,18 +154,25 @@ def api_day_save():
 def api_day_get():
     date = request.args.get("date", "")
     if not date:
-        return jsonify({"ok": False, "error": "Missing ?date=YYYY-MM-DD"}), 400
+        return (
+            jsonify({"ok": False, "error": "Missing ?date=YYYY-MM-DD"}),
+            400,
+        )
     user_id = _resolve_user_id()
     day = history_store.get_day(current_app.instance_path, user_id, date)
     if not day:
         return jsonify({"ok": False, "error": "Not found"}), 404
     return jsonify({"ok": True, "day": day})
 
+
 @history_bp.get("/api/day/csv")
 def api_day_csv():
     date = request.args.get("date", "")
     if not date:
-        return jsonify({"ok": False, "error": "Missing ?date=YYYY-MM-DD"}), 400
+        return (
+            jsonify({"ok": False, "error": "Missing ?date=YYYY-MM-DD"}),
+            400,
+        )
     user_id = _resolve_user_id()
     day = history_store.get_day(current_app.instance_path, user_id, date)
     if not day:
@@ -153,18 +181,39 @@ def api_day_csv():
     out = io.StringIO()
     w = csv.writer(out)
     # Totals first (matches your history table expectations)
-    w.writerow(["Date", "Sodium (mg)", "Potassium (mg)", "Cholesterol (mg)", "Protein (g)", "Calories"])
+    w.writerow(
+        [
+            "Date",
+            "Sodium (mg)",
+            "Potassium (mg)",
+            "Cholesterol (mg)",
+            "Protein (g)",
+            "Calories",
+        ]
+    )
     t = day.get("totals", {})
-    w.writerow([
-        day.get("date", ""),
-        t.get("Sodium", ""), t.get("Potassium", ""), t.get("Cholesterol", ""),
-        t.get("Protein", ""), t.get("Calories", "")
-    ])
+    w.writerow(
+        [
+            day.get("date", ""),
+            t.get("Sodium", ""),
+            t.get("Potassium", ""),
+            t.get("Cholesterol", ""),
+            t.get("Protein", ""),
+            t.get("Calories", ""),
+        ]
+    )
     # Spacer + optional entries
     w.writerow([])
     entries: List[Dict[str, Any]] = day.get("entries", [])
     if entries:
-        preferred = ["food", "amount", "sodium_mg", "potassium_mg", "protein_g", "calories_kcal"]
+        preferred = [
+            "food",
+            "amount",
+            "sodium_mg",
+            "potassium_mg",
+            "protein_g",
+            "calories_kcal",
+        ]
         keys = set().union(*(e.keys() for e in entries))
         cols = preferred + [k for k in sorted(keys) if k not in preferred]
         w.writerow(cols)
@@ -176,10 +225,83 @@ def api_day_csv():
     return Response(
         out.getvalue(),
         mimetype="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="day_{date}.csv"'}
+        headers={
+            "Content-Disposition": f'attachment; filename="day_{date}.csv"'
+        },
     )
 
+
+# -------- New: full-day get + autosave for live Daily Diary --------
+
+
+@history_bp.get("/api/full/day")
+def api_full_day_get():
+    """
+    Return the *full-day* entry list for a given date.
+
+    Primary source: full_day_store (instance/full_days/<uid>.json).
+    Fallback: history_store, if the newer file doesn't have that date yet.
+    """
+    date = request.args.get("date", "")
+    if not date:
+        return (
+            jsonify({"ok": False, "error": "Missing ?date=YYYY-MM-DD"}),
+            400,
+        )
+
+    user_id = _resolve_user_id()
+
+    # 1) Look in full_day_store
+    days = full_day_store.list_days(current_app.instance_path, user_id)
+    day = next((d for d in days if d.get("date") == date), None)
+
+    # 2) Fallback to history_store if needed (for older records)
+    if day is None:
+        legacy = history_store.get_day(
+            current_app.instance_path, user_id, date
+        )
+        if legacy:
+            day = {
+                "date": legacy.get("date", date),
+                "entries": legacy.get("entries", []),
+            }
+
+    if not day:
+        return jsonify({"ok": False, "error": "Not found"}), 404
+
+    return jsonify({"ok": True, "day": day})
+
+
+@history_bp.post("/api/full/autosave")
+def api_full_day_autosave():
+    """
+    Autosave the *detail* entries for a date while the user is typing
+    in Daily Diary. This does NOT touch the totals history.
+    """
+    payload: Dict[str, Any] = request.get_json(silent=True) or {}
+    date = payload.get("date")
+    entries = payload.get("entries", [])
+
+    if not date:
+        return (
+            jsonify({"ok": False, "error": "Missing 'date'"}),
+            400,
+        )
+    if not isinstance(entries, list):
+        return (
+            jsonify({"ok": False, "error": "'entries' must be a list"}),
+            400,
+        )
+
+    user_id = _resolve_user_id()
+    day_full = {"date": date, "entries": entries}
+    full_day_store.upsert_day(current_app.instance_path, user_id, day_full)
+
+    return jsonify({"ok": True})
+
+
 # -------------------- Back-compat endpoints ------------------------
+
 
 @history_bp.get("/api/history/csv")
 def api_history_csv():
@@ -188,87 +310,150 @@ def api_history_csv():
 
     out = io.StringIO()
     w = csv.writer(out)
-    w.writerow(["Date", "Sodium (mg)", "Potassium (mg)", "Cholesterol (mg)", "Protein (g)", "Calories",
-                "Carbs (g)", "Fat (g)", "Sat Fat (g)", "Mono Fat (g)", "Poly Fat (g)", "Sugar (g)",
-                "Calcium (mg)", "Magnesium (mg)", "Iron (mg)"])
+    w.writerow(
+        [
+            "Date",
+            "Sodium (mg)",
+            "Potassium (mg)",
+            "Cholesterol (mg)",
+            "Protein (g)",
+            "Calories",
+            "Carbs (g)",
+            "Fat (g)",
+            "Sat Fat (g)",
+            "Mono Fat (g)",
+            "Poly Fat (g)",
+            "Sugar (g)",
+            "Calcium (mg)",
+            "Magnesium (mg)",
+            "Iron (mg)",
+        ]
+    )
     for d in days:
         t = d.get("totals", {})
-        w.writerow([
-            d.get("date", ""),
-            t.get("Sodium", ""), t.get("Potassium", ""), t.get("Cholesterol", ""),
-            t.get("Protein", ""), t.get("Calories", ""),
-            t.get("Carbs", ""), t.get("Fat", ""), t.get("Sat Fat", ""),
-            t.get("Mono Fat", ""), t.get("Poly Fat", ""), t.get("Sugar", ""),
-            t.get("Calcium", ""), t.get("Magnesium", ""), t.get("Iron", ""),
-        ])
+        w.writerow(
+            [
+                d.get("date", ""),
+                t.get("Sodium", ""),
+                t.get("Potassium", ""),
+                t.get("Cholesterol", ""),
+                t.get("Protein", ""),
+                t.get("Calories", ""),
+                t.get("Carbs", ""),
+                t.get("Fat", ""),
+                t.get("Sat Fat", ""),
+                t.get("Mono Fat", ""),
+                t.get("Poly Fat", ""),
+                t.get("Sugar", ""),
+                t.get("Calcium", ""),
+                t.get("Magnesium", ""),
+                t.get("Iron", ""),
+            ]
+        )
 
     return Response(
         out.getvalue(),
         mimetype="text/csv",
-        headers={"Content-Disposition": 'attachment; filename="history_all_days.csv"'}
+        headers={
+            "Content-Disposition": 'attachment; filename="history_all_days.csv"'
+        },
     )
+
 
 @history_bp.get("/api/history/debug")
 def api_history_debug():
     user_id = _resolve_user_id()
     days = history_store.list_days(current_app.instance_path, user_id)
     try:
-        file_path = history_store.history_file_path(current_app.instance_path, user_id)
+        file_path = history_store.history_file_path(
+            current_app.instance_path, user_id
+        )
     except AttributeError:
         file_path = str(_file_for(user_id))
-    return jsonify({"ok": True, "uid": user_id, "file": file_path, "count": len(days), "days": days})
+    return jsonify(
+        {
+            "ok": True,
+            "uid": user_id,
+            "file": file_path,
+            "count": len(days),
+            "days": days,
+        }
+    )
+
+
 # ---------- View: Full Daily Records ----------
+
+
 @history_bp.get("/full")
 def full_records_page():
     """
     Show the complete daily records (all food entries, not just totals).
     """
-    from nutrition.services import full_day_store
     user_id = _resolve_user_id()
     days = full_day_store.list_days(current_app.instance_path, user_id)
     return render_template("app/full_days.html", days=days, uid=user_id)
+
+
 @history_bp.get("/api/full/csv")
 def api_full_csv():
     """Export one row per entry with the date on each row."""
     user_id = _resolve_user_id()
-    days = history_store.list_days(current_app.instance_path, user_id)
+    days = full_day_store.list_days(current_app.instance_path, user_id)
 
     out = io.StringIO()
     w = csv.writer(out)
-    w.writerow([
-        "Date","Food","Amount",
-        "Sodium (mg)","Potassium (mg)","Cholesterol (mg)",
-        "Protein (g)","Calories",
-        "Carbs (g)","Fat (g)","Sat Fat (g)","Mono Fat (g)","Poly Fat (g)","Sugar (g)",
-        "Calcium (mg)","Magnesium (mg)","Iron (mg)"
-    ])
+    w.writerow(
+        [
+            "Date",
+            "Food",
+            "Amount",
+            "Sodium (mg)",
+            "Potassium (mg)",
+            "Cholesterol (mg)",
+            "Protein (g)",
+            "Calories",
+            "Carbs (g)",
+            "Fat (g)",
+            "Sat Fat (g)",
+            "Mono Fat (g)",
+            "Poly Fat (g)",
+            "Sugar (g)",
+            "Calcium (mg)",
+            "Magnesium (mg)",
+            "Iron (mg)",
+        ]
+    )
 
     for d in days:
-        date = d.get("date","")
+        date = d.get("date", "")
         for e in (d.get("entries") or []):
-            w.writerow([
-                date,
-                e.get("food",""),
-                e.get("amount",0),
-                e.get("sodium_mg",0),
-                e.get("potassium_mg",0),
-                e.get("cholesterol_mg",0),
-                e.get("protein_g",0),
-                e.get("calories_kcal",0),
-                e.get("carbs_g",0),
-                e.get("fat_g",0),
-                # try multiple keys for sat fat if your save code evolves
-                e.get("sat_g", e.get("sat_fat_g", e.get("satfat_g",0))),
-                e.get("mono_g",0),
-                e.get("poly_g",0),
-                e.get("sugar_g",0),
-                e.get("calcium_mg",0),
-                e.get("magnesium_mg",0),
-                e.get("iron_mg",0),
-            ])
+            w.writerow(
+                [
+                    date,
+                    e.get("food", ""),
+                    e.get("amount", 0),
+                    e.get("sodium_mg", 0),
+                    e.get("potassium_mg", 0),
+                    e.get("cholesterol_mg", 0),
+                    e.get("protein_g", 0),
+                    e.get("calories_kcal", 0),
+                    e.get("carbs_g", 0),
+                    e.get("fat_g", 0),
+                    # try multiple keys for sat fat if your save code evolves
+                    e.get("sat_g", e.get("sat_fat_g", e.get("satfat_g", 0))),
+                    e.get("mono_g", 0),
+                    e.get("poly_g", 0),
+                    e.get("sugar_g", 0),
+                    e.get("calcium_mg", 0),
+                    e.get("magnesium_mg", 0),
+                    e.get("iron_mg", 0),
+                ]
+            )
 
     return Response(
         out.getvalue(),
         mimetype="text/csv",
-        headers={"Content-Disposition": 'attachment; filename="full_daily_records.csv"'}
+        headers={
+            "Content-Disposition": 'attachment; filename="full_daily_records.csv"'
+        },
     )

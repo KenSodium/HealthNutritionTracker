@@ -1,0 +1,182 @@
+{# templates/label/indexLabel.html #}
+{% extends "app_base.html" %}
+{% block title %}Enter Nutrition Label — Nutrition Tracker{% endblock %}
+
+{% block head_extra %}
+<style>
+  .label-layout-row {
+    margin-top: 1rem;
+  }
+  .label-help-card {
+    max-width: 560px;
+    margin-left: auto;
+  }
+  .label-help-image {
+    max-width: 560px;   /* ~30% smaller than before */
+    height: auto;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrapper">
+  <div class="container-xl">
+
+    <div class="page-header d-print-none">
+      <div class="row align-items-center">
+        <div class="col">
+          <h1 class="page-title">Enter Nutrition Facts Label</h1>
+          <div class="text-muted mt-1">
+            Type the values from a package Nutrition Facts panel.
+            When you press <strong>“Send Nutrition Table Information to Univer Spreadsheet”</strong>,
+            this food will be added to your Univer “My Food List” in canonical order.
+          </div>
+        </div>
+        <div class="col-auto">
+          <a class="btn btn-outline-primary" href="{{ url_for('univer.univer_foods') }}">
+            → Go to Univer My Food List
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="row label-layout-row">
+      <!-- LEFT: form -->
+      <div class="col-md-7 col-lg-6">
+
+        <form method="post" action="{{ url_for('label_entry.index') }}">
+          {{ csrf_token() if csrf_token is defined }}
+
+          <div class="mb-3">
+            <label class="form-label">Description (name of food)</label>
+            <input class="form-control"
+                   name="description"
+                   placeholder="e.g., Brand X Granola">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Household Label</label>
+            <input class="form-control"
+                   name="householdServingFullText"
+                   placeholder="e.g., 2/3 cup">
+            <small class="form-hint">
+              Enter the household measure exactly as shown on the label (for example: <strong>2/3 cup</strong>).
+            </small>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Serving Size (grams)</label>
+            <div class="input-group">
+              <input class="form-control" name="serving_size" placeholder="55">
+              <span class="input-group-text">g</span>
+              <input type="hidden" name="serving_unit" value="g">
+            </div>
+            <small class="form-hint">
+              Enter the serving size in grams exactly as shown on the label.
+            </small>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Brand Owner (optional)</label>
+            <input class="form-control"
+                   name="brandOwner"
+                   placeholder="e.g., Brand X Foods">
+          </div>
+
+          <hr>
+
+          <h2 class="h4">Nutrients (per serving)</h2>
+          <p class="text-muted mb-2">
+            Enter the nutrients <strong>per serving</strong> in the same order they appear on the Nutrition Facts label.
+          </p>
+
+          <table class="table table-sm table-bordered" style="max-width: 520px;">
+            <thead>
+              <tr>
+                <th>Nutrient</th>
+                <th>Value per serving</th>
+              </tr>
+            </thead>
+            <tbody>
+              {# Fixed, label-style order #}
+              <tr>
+                <td>Calories</td>
+                <td><input class="form-control form-control-sm" type="number" step="0.01" name="nut_Calories" placeholder="230"></td>
+              </tr>
+              <tr>
+                <td>Total Fat (g)</td>
+                <td><input class="form-control form-control-sm" type="number" step="0.01" name="nut_Fat" placeholder="8"></td>
+              </tr>
+              <tr>
+                <td>Saturated Fat (g)</td>
+                <td><input class="form-control form-control-sm" type="number" step="0.01" name="nut_Sat_Fat" placeholder="1"></td>
+              </tr>
+              <tr>
+                <td>Cholesterol (mg)</td>
+                <td><input class="form-control form-control-sm" type="number" step="0.01" name="nut_Cholesterol" placeholder="0"></td>
+              </tr>
+              <tr>
+                <td>Sodium (mg)</td>
+                <td><input class="form-control form-control-sm" type="number" step="0.01" name="nut_Sodium" placeholder="160"></td>
+              </tr>
+              <tr>
+                <td>Total Carbohydrate (g)</td>
+                <td><input class="form-control form-control-sm" type="number" step="0.01" name="nut_Carbs" placeholder="37"></td>
+              </tr>
+              <tr>
+                <td>Dietary Fiber (g)</td>
+                <td><input class="form-control form-control-sm" type="number" step="0.01" name="nut_Fiber" placeholder="4"></td>
+              </tr>
+              <tr>
+                <td>Total Sugars (g)</td>
+                <td><input class="form-control form-control-sm" type="number" step="0.01" name="nut_Sugar" placeholder="12"></td>
+              </tr>
+              <tr>
+                <td>Protein (g)</td>
+                <td><input class="form-control form-control-sm" type="number" step="0.01" name="nut_Protein" placeholder="3"></td>
+              </tr>
+              <tr>
+                <td>Calcium (mg)</td>
+                <td><input class="form-control form-control-sm" type="number" step="0.01" name="nut_Calcium" placeholder="260"></td>
+              </tr>
+              <tr>
+                <td>Iron (mg)</td>
+                <td><input class="form-control form-control-sm" type="number" step="0.01" name="nut_Iron" placeholder="8"></td>
+              </tr>
+              <tr>
+                <td>Potassium (mg)</td>
+                <td><input class="form-control form-control-sm" type="number" step="0.01" name="nut_Potassium" placeholder="240"></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <button type="submit" class="btn btn-primary mt-2">
+            Send Nutrition Table Information to Univer Spreadsheet
+          </button>
+        </form>
+      </div>
+
+      <!-- RIGHT: example image and text -->
+      <div class="col-md-5 col-lg-6">
+        <div class="card label-help-card">
+          <div class="card-body">
+            <h3 class="card-title mb-2">Example Nutrition Facts label</h3>
+            <p class="card-text small mb-2">
+              Enter your label values in the form to the left in the same order they appear here.
+              When you are done, press
+              <strong>“Send Nutrition Table Information to Univer Spreadsheet”</strong>
+              to add this food to your spreadsheet in canonical order.
+            </p>
+            <img
+              src="{{ url_for('static', filename='img/example-nutrition-label.png') }}"
+              alt="Example Nutrition Facts label"
+              class="img-fluid label-help-image"
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

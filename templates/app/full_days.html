@@ -1,98 +1,539 @@
 {# templates/app/full_days.html #}
 {% extends "app_base.html" %}
-{% block title %}Full Daily Records{% endblock %}
+{% block title %}Daily History — Nutrition Tracker{% endblock %}
 
 {% block head_extra %}
 <style>
-  .full-history .table { font-size:.95rem; white-space:nowrap; }
-  .full-history .table th, .full-history .table td { vertical-align:middle; }
-  .full-history .num { text-align:right; }
-  .full-history .card-header { display:flex; align-items:center; gap:.5rem; }
-  .full-history .muted { color:var(--tblr-secondary,#6c757d); }
+  :root{
+    --diary-right: 320px;
+    --col-amt: 110px;
+    --col-na: 100px;
+    --col-k: 100px;
+    --col-pro: 100px;
+    --col-cal: 100px;
+  }
+  @media (max-width: 1200px){
+    :root{ --diary-right: 280px; }
+  }
+
+  .daily-layout {
+    display: grid;
+    grid-template-columns: 1fr var(--diary-right);
+    gap: 16px;
+  }
+  .daily-layout > * { min-width: 0; }
+
+  .table-wrap {
+    border: 1px solid var(--tblr-border-color, #dadde1);
+    border-radius: 8px;
+    overflow: auto;
+    background: var(--tblr-body-bg, #fff);
+  }
+  #history-table {
+    table-layout: fixed;
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  #history-table th,
+  #history-table td {
+    padding: .5rem .6rem;
+    font-size: 15px;
+    vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #history-table th:first-child,
+  #history-table td:first-child {
+    white-space: normal;
+  }
+  .num { text-align: right; }
+
+  .totals-card {
+    border: 1px solid var(--tblr-border-color, #dadde1);
+    border-radius: 8px;
+    background: var(--tblr-body-bg, #fff);
+  }
+  .totals-card .card-header {
+    padding: .75rem 1rem;
+    border-bottom: 1px solid var(--tblr-border-color, #dadde1);
+  }
+  .totals-card .card-body { padding: 12px; }
+
+  .meter { margin-bottom: 16px; }
+  .meter-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+  .meter-track {
+    position: relative;
+    height: 18px;
+    border-radius: 5px;
+    background: #f8f9fa;
+    overflow: hidden;
+  }
+  .meter-fill-below,
+  .meter-fill-in,
+  .meter-fill-over {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 0%;
+    transition: left 140ms ease-out, width 140ms ease-out, background-color 140ms ease-out;
+  }
+  .meter-fill-below { left: 0; background: #d0ebff; }  /* below range: light blue */
+  .meter-fill-in    { background: #51cf66; }            /* in range: green */
+  .meter-fill-over  { background: #ff6b6b; }            /* over range: red  */
+
+  .meter-marker {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #5c7cfa;
+    opacity: 0.9;
+    transform: translateX(-1px);
+    pointer-events: none;
+  }
+  .meter-marker-high {
+    background: #343a40;
+  }
+  .meter-inputs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    align-items: center;
+    margin-top: 4px;
+    font-size: 12px;
+  }
+  .meter-inputs label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+  }
+  .meter-inputs input[type="number"] {
+    width: 72px;
+    padding: 2px 4px;
+    font-size: 12px;
+  }
+  .meter-goaltext {
+    margin-top: 2px;
+    font-size: 11px;
+  }
+  .date-controls { display:flex; gap:.5rem; align-items:center; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center my-3">
-  <h2 class="m-0">Full Daily Records</h2>
-  <a class="btn btn-outline" href="{{ url_for('history.api_full_csv') }}">Export CSV</a>
-</div>
-
-<div class="container-xl full-history">
-  <h2 class="my-3">Full Daily Records</h2>
-
-  {% if not days %}
-    <div class="alert alert-info">No full-day records saved yet.</div>
-  {% else %}
-    {% for d in days %}
-      <div class="card mb-3">
-        <div class="card-header">
-          <strong>{{ d.date }}</strong>
-          <span class="muted">— {{ d.entries|length }} item{{ '' if d.entries|length == 1 else 's' }}</span>
+<div class="page-wrapper">
+  <div class="container-xl">
+    <div class="page-header d-print-none">
+      <div class="row align-items-center">
+        <div class="col">
+          <h2 class="page-title">Daily History</h2>
+          <div class="text-muted mt-1">
+            View past days with the same meters as the Daily Diary. Read-only.
+          </div>
         </div>
-
-        <div class="card-body p-0">
-          <div class="table-responsive">
-            <table class="table table-sm mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th>Food</th>
-                  <th class="num">Amount</th>
-                  <th class="num">Sodium (mg)</th>
-                  <th class="num">Potassium (mg)</th>
-                  <th class="num">Cholesterol (mg)</th>
-                  <th class="num">Protein (g)</th>
-                  <th class="num">Calories</th>
-                  <th class="num">Carbs (g)</th>
-                  <th class="num">Fat (g)</th>
-                  <th class="num">Sat Fat (g)</th>
-                  <th class="num">Mono Fat (g)</th>
-                  <th class="num">Poly Fat (g)</th>
-                  <th class="num">Sugar (g)</th>
-                  <th class="num">Calcium (mg)</th>
-                  <th class="num">Magnesium (mg)</th>
-                  <th class="num">Iron (mg)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for e in d.entries %}
-                  <tr>
-                    <td>{{ e.food }}</td>
-                    <td class="num">{{ e.amount }}</td>
-
-                    {# mg-style ints #}
-                    <td class="num">{{ "{:,}".format(((e.sodium_mg or 0)|round(0,'floor')|int)) }}</td>
-                    <td class="num">{{ "{:,}".format(((e.potassium_mg or 0)|round(0,'floor')|int)) }}</td>
-                    <td class="num">
-                      {% if e.cholesterol_mg is defined %}
-                        {{ "{:,}".format(((e.cholesterol_mg or 0)|round(0,'floor')|int)) }}
-                      {% else %}
-                        —
-                      {% endif %}
-                    </td>
-
-                    {# g-style one decimal #}
-                    <td class="num">{{ "%.1f"|format(e.protein_g or 0) }}</td>
-                    <td class="num">{{ "{:,}".format(((e.calories_kcal or 0)|round(0,'floor')|int)) }}</td>
-                    <td class="num">{{ "%.1f"|format(e.carbs_g or 0) }}</td>
-                    <td class="num">{{ "%.1f"|format(e.fat_g or 0) }}</td>
-                    <td class="num">{{ "%.1f"|format(e.sat_g or e.get('sat_fat_g', e.get('satfat_g', 0)) or 0) }}</td>
-                    <td class="num">{{ "%.1f"|format(e.mono_g or 0) }}</td>
-                    <td class="num">{{ "%.1f"|format(e.poly_g or 0) }}</td>
-                    <td class="num">{{ "%.1f"|format(e.sugar_g or 0) }}</td>
-
-                    {# remaining mg-style ints #}
-                    <td class="num">{{ "{:,}".format(((e.calcium_mg or 0)|round(0,'floor')|int)) }}</td>
-                    <td class="num">{{ "{:,}".format(((e.magnesium_mg or 0)|round(0,'floor')|int)) }}</td>
-                    <td class="num">{{ "%.1f"|format(e.iron_mg or 0) }}</td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+        <div class="col-auto ms-auto d-print-none">
+          <div class="date-controls">
+            <button class="btn btn-outline" id="btn-prev" type="button">←</button>
+            <input class="form-control" type="date" id="day-picker" style="width: 180px;">
+            <button class="btn btn-outline" id="btn-next" type="button">→</button>
+            <a class="btn btn-primary" href="{{ url_for('app_daily') }}">Today (edit)</a>
           </div>
         </div>
       </div>
-    {% endfor %}
-  {% endif %}
+    </div>
+
+    <div class="daily-layout">
+      <!-- LEFT: per-food entries for selected day -->
+      <div class="table-wrap">
+        <table class="table card-table mb-0" id="history-table">
+          <colgroup>
+            <col> <!-- Food -->
+            <col style="width: var(--col-amt)"> <!-- Amount -->
+            <col style="width: 80px">          <!-- Unit -->
+            <col style="width: var(--col-na)"> <!-- Na -->
+            <col style="width: var(--col-k)">  <!-- K -->
+            <col style="width: var(--col-pro)">/* Protein */
+            <col style="width: var(--col-cal)">/* Calories */
+          </colgroup>
+          <thead class="table-light">
+            <tr>
+              <th>Food</th>
+              <th class="num">Amount</th>
+              <th>Unit</th>
+              <th class="num">Sodium (mg)</th>
+              <th class="num">K (mg)</th>
+              <th class="num">Protein (g)</th>
+              <th class="num">Calories</th>
+            </tr>
+          </thead>
+          <tbody id="history-body">
+            <!-- Filled by JS -->
+          </tbody>
+        </table>
+        <div id="history-empty" class="p-3 text-muted" style="display:none;">
+          No entries saved for this date.
+        </div>
+      </div>
+
+      <!-- RIGHT: meters + totals -->
+      <div class="totals-card">
+        <div class="card-header">
+          <h3 class="card-title mb-0">Day totals</h3>
+          <div class="text-muted small">
+            Same ranges as Daily Diary. Bars: blue = below range, green = in range, red = above.
+          </div>
+        </div>
+
+        <div class="card-body" id="totals-panel"></div>
+
+        <div class="card-body pt-0">
+          <hr class="my-2">
+          <div class="fw-semibold mb-2">All nutrients (totals for day)</div>
+          <table class="table table-sm mb-0">
+            <tbody id="all-totals-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  // =============== Data from server ===================
+  const DAYS = {{ days|tojson|safe }};
+  const TODAY_SERVER = "{{ today|default('', true) }}";
+
+  const GOALS = { na: 1500, k: 3400, pro: 70, cal: 1500 };
+  const SCALE = 1.25; // bar extends to 125% of high threshold
+
+  let GOAL_RANGES = {
+    na:  { low: 0,       high: GOALS.na },
+    k:   { low: 0,       high: GOALS.k },
+    pro: { low: 0,       high: GOALS.pro },
+    cal: { low: 0,       high: GOALS.cal },
+  };
+
+  // --------- Helpers for dates ----------------
+  function dateFromIso(iso){
+    const [y, m, d] = iso.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  }
+  function toIsoDate(d){
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  function lastSavedDate(){
+    if (!Array.isArray(DAYS) || !DAYS.length) return null;
+    // full_day_store.py already sorts by date, so last element is latest
+    return DAYS[DAYS.length - 1].date || null;
+  }
+
+  // ---------- Load & save goal ranges (share with Daily Diary) ----------
+  function loadGoalRanges(){
+    try {
+      const raw = localStorage.getItem("diary-goal-ranges-v2");
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      if (!data || typeof data !== "object") return;
+      ["na","k","pro","cal"].forEach(key => {
+        if (data[key]) {
+          const d = data[key];
+          const base = GOAL_RANGES[key];
+          GOAL_RANGES[key] = {
+            low:  typeof d.low  === "number" ? d.low  : base.low,
+            high: typeof d.high === "number" ? d.high : base.high,
+          };
+        }
+      });
+    } catch(e){ console.warn("loadGoalRanges failed", e); }
+  }
+  function saveGoalRanges(){
+    try {
+      localStorage.setItem("diary-goal-ranges-v2", JSON.stringify(GOAL_RANGES));
+    } catch(e){ console.warn("saveGoalRanges failed", e); }
+  }
+
+  // ------------- Build meters (same style as Daily) ----------------
+  function makeMeter(host, label, key, unit, goal){
+    const range = GOAL_RANGES[key] || { low: 0, high: goal };
+    const wrap = document.createElement("div");
+    wrap.className = "meter";
+    wrap.innerHTML = `
+      <div class="meter-label">
+        <span>${label}</span>
+        <span id="m-${key}-val">0 ${unit}</span>
+      </div>
+      <div class="meter-track" id="m-${key}-track">
+        <div class="meter-fill-below" id="m-${key}-below"></div>
+        <div class="meter-fill-in" id="m-${key}-in"></div>
+        <div class="meter-fill-over" id="m-${key}-over"></div>
+        <div class="meter-marker" id="m-${key}-lowmark"></div>
+        <div class="meter-marker meter-marker-high" id="m-${key}-highmark"></div>
+      </div>
+      <div class="meter-inputs">
+        <label>
+          Low
+          <input type="number"
+                 id="m-${key}-low"
+                 data-key="${key}"
+                 data-role="low"
+                 min="0" step="10">
+          ${unit}
+        </label>
+        <label>
+          High
+          <input type="number"
+                 id="m-${key}-high"
+                 data-key="${key}"
+                 data-role="high"
+                 min="0" step="10">
+          ${unit}
+        </label>
+      </div>
+      <div class="text-muted meter-goaltext" id="m-${key}-goaltext"></div>
+    `;
+    host.appendChild(wrap);
+
+    const lowInput  = wrap.querySelector(`#m-${key}-low`);
+    const highInput = wrap.querySelector(`#m-${key}-high`);
+    if (lowInput)  lowInput.value  = range.low ?? 0;
+    if (highInput) highInput.value = range.high ?? goal;
+    lowInput?.addEventListener("change", onGoalInputChange);
+    highInput?.addEventListener("change", onGoalInputChange);
+
+    const goalText = wrap.querySelector(`#m-${key}-goaltext`);
+    if (goalText){
+      goalText.textContent =
+        `Range: ${range.low.toLocaleString()}–${range.high.toLocaleString()} ${unit}`.trim();
+    }
+  }
+
+  function onGoalInputChange(e){
+    const input = e.target;
+    const key = input.dataset.key;
+    const role = input.dataset.role;
+    if (!key || !role) return;
+    let val = Number(input.value);
+    if (!Number.isFinite(val) || val < 0) val = 0;
+
+    const base = GOAL_RANGES[key] || { low: 0, high: GOALS[key] || 0 };
+    GOAL_RANGES[key] = { ...base, [role]: val };
+
+    if (GOAL_RANGES[key].low > GOAL_RANGES[key].high){
+      if (role === "low") GOAL_RANGES[key].high = GOAL_RANGES[key].low;
+      else GOAL_RANGES[key].low = GOAL_RANGES[key].high;
+    }
+    saveGoalRanges();
+    updateMeters(currentTotals);   // re-paint with new ranges
+  }
+
+  // ------------- Painting a meter ----------------
+  function paintMeter(key, value, goal, unit){
+    const range = GOAL_RANGES[key] || { low: 0, high: goal };
+    let low  = Math.max(0, Number(range.low)  || 0);
+    let high = Math.max(low, Number(range.high) || goal);
+
+    const cap = (high > 0 ? high * SCALE : (goal * SCALE) || 1);
+    const pct = Math.max(0, Math.min((value / cap) * 100, 100));
+
+    const belowEl = document.querySelector(`#m-${key}-below`);
+    const inEl    = document.querySelector(`#m-${key}-in`);
+    const overEl  = document.querySelector(`#m-${key}-over`);
+    const lowMark = document.querySelector(`#m-${key}-lowmark`);
+    const highMark= document.querySelector(`#m-${key}-highmark`);
+    const valEl   = document.querySelector(`#m-${key}-val`);
+    const goalText= document.querySelector(`#m-${key}-goaltext`);
+    const lowInput = document.querySelector(`#m-${key}-low`);
+    const highInput= document.querySelector(`#m-${key}-high`);
+    if (!belowEl || !inEl || !overEl || !valEl) return;
+
+    if (lowInput)  lowInput.value  = low;
+    if (highInput) highInput.value = high;
+
+    const lowPct  = Math.max(0, Math.min((low  / cap) * 100, 100));
+    const highPct = Math.max(lowPct, Math.min((high / cap) * 100, 100));
+
+    const belowWidth = Math.min(pct, lowPct);
+    const inWidth    = Math.max(0, Math.min(pct, highPct) - lowPct);
+    const overWidth  = Math.max(0, pct - highPct);
+
+    belowEl.style.left  = "0%";
+    belowEl.style.width = `${belowWidth}%`;
+    inEl.style.left     = `${lowPct}%`;
+    inEl.style.width    = `${inWidth}%`;
+    overEl.style.left   = `${highPct}%`;
+    overEl.style.width  = `${overWidth}%`;
+
+    if (lowMark)  lowMark.style.left  = `${lowPct}%`;
+    if (highMark) highMark.style.left = `${highPct}%`;
+
+    valEl.textContent = unit
+      ? `${Math.round(value).toLocaleString()} ${unit}`
+      : `${Math.round(value).toLocaleString()}`;
+
+    if (goalText){
+      goalText.textContent =
+        `Range: ${low.toLocaleString()}–${high.toLocaleString()} ${unit}`.trim();
+    }
+  }
+
+  // ------------- Rendering a day ----------------
+  function findDay(dateIso){
+    return (DAYS || []).find(d => d.date === dateIso) || null;
+  }
+
+  function totalsFromEntries(entries){
+    const t = {
+      na:0, k:0, pro:0, cal:0, chol:0,
+      carbs:0, fat:0, sat:0, mono:0, poly:0, sugar:0,
+      ca:0, mg:0, iron:0
+    };
+    (entries || []).forEach(e => {
+      t.na   += e.sodium_mg      ?? 0;
+      t.k    += e.potassium_mg   ?? 0;
+      t.pro  += e.protein_g      ?? 0;
+      t.cal  += e.calories_kcal  ?? 0;
+      t.chol += e.cholesterol_mg ?? 0;
+      t.fat  += e.fat_g          ?? 0;
+      t.carbs+= e.carbs_g        ?? 0;
+      t.sugar+= e.sugar_g        ?? 0;
+      t.ca   += e.calcium_mg     ?? 0;
+      t.mg   += e.magnesium_mg   ?? 0;
+      t.iron += e.iron_mg        ?? 0;
+      // sat / mono / poly not always present in older entries
+      t.sat  += e.sat_g      || e.sat_fat_g || e.satfat_g || 0;
+      t.mono += e.mono_g     || 0;
+      t.poly += e.poly_g     || 0;
+    });
+    return t;
+  }
+
+  function renderAllTotals(t){
+    const rows = [
+      ["Sodium (mg)",      t.na],
+      ["Potassium (mg)",   t.k],
+      ["Protein (g)",      t.pro],
+      ["Calories",         t.cal],
+      ["Cholesterol (mg)", t.chol],
+      ["Carbs (g)",        t.carbs],
+      ["Fat (g)",          t.fat],
+      ["Sat Fat (g)",      t.sat],
+      ["Mono Fat (g)",     t.mono],
+      ["Poly Fat (g)",     t.poly],
+      ["Sugar (g)",        t.sugar],
+      ["Calcium (mg)",     t.ca],
+      ["Magnesium (mg)",   t.mg],
+      ["Iron (mg)",        t.iron],
+    ];
+    const tbody = document.getElementById("all-totals-body");
+    if (!tbody) return;
+    tbody.innerHTML = rows.map(([k,v]) =>
+      `<tr><td>${k}</td><td class="text-end">${Number(v||0).toLocaleString()}</td></tr>`
+    ).join("");
+  }
+
+  let currentDateIso = null;
+  let currentTotals = {
+    na:0,k:0,pro:0,cal:0,chol:0,
+    carbs:0,fat:0,sat:0,mono:0,poly:0,sugar:0,ca:0,mg:0,iron:0
+  };
+
+  function renderDay(dateIso){
+    currentDateIso = dateIso;
+    const day = findDay(dateIso);
+    const tbody = document.getElementById("history-body");
+    const emptyMsg = document.getElementById("history-empty");
+    tbody.innerHTML = "";
+
+    if (!day || !day.entries || !day.entries.length){
+      emptyMsg.style.display = "block";
+      currentTotals = totalsFromEntries([]);
+      updateMeters(currentTotals);
+      renderAllTotals(currentTotals);
+      return;
+    }
+    emptyMsg.style.display = "none";
+
+    day.entries.forEach(e => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${e.food || ""}</td>
+        <td class="num">${(e.amount ?? 0).toString()}</td>
+        <td>${e.unit || ""}</td>
+        <td class="num">${Math.round(e.sodium_mg      || 0).toLocaleString()}</td>
+        <td class="num">${Math.round(e.potassium_mg   || 0).toLocaleString()}</td>
+        <td class="num">${(e.protein_g || 0).toFixed(1).replace(/\.0$/,"")}</td>
+        <td class="num">${Math.round(e.calories_kcal  || 0).toLocaleString()}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    currentTotals = totalsFromEntries(day.entries);
+    updateMeters(currentTotals);
+    renderAllTotals(currentTotals);
+  }
+
+  function updateMeters(t){
+    paintMeter("na",  t.na,  GOALS.na,  "mg");
+    paintMeter("k",   t.k,   GOALS.k,   "mg");
+    paintMeter("pro", t.pro, GOALS.pro, "g");
+    paintMeter("cal", t.cal, GOALS.cal, "");
+  }
+
+  // ------------- Date navigation ----------------
+  function shiftDate(delta){
+    if (!currentDateIso){
+      const ls = lastSavedDate();
+      if (!ls) return;
+      currentDateIso = ls;
+    }
+    const d = dateFromIso(currentDateIso);
+    d.setDate(d.getDate() + delta);
+    const iso = toIsoDate(d);
+    const picker = document.getElementById("day-picker");
+    if (picker) picker.value = iso;
+    renderDay(iso);
+  }
+
+  // ------------- Boot ----------------
+  (function boot(){
+    loadGoalRanges();
+
+    const totalsHost = document.getElementById("totals-panel");
+    if (totalsHost){
+      makeMeter(totalsHost, "Sodium",   "na",  "mg", GOALS.na);
+      makeMeter(totalsHost, "Potassium","k",   "mg", GOALS.k);
+      makeMeter(totalsHost, "Protein",  "pro", "g",  GOALS.pro);
+      makeMeter(totalsHost, "Calories", "cal", "",   GOALS.cal);
+    }
+
+    const picker = document.getElementById("day-picker");
+    let initial = TODAY_SERVER || lastSavedDate() ||
+      toIsoDate(new Date());
+    if (picker) picker.value = initial;
+
+    renderDay(initial);
+
+    document.getElementById("btn-prev")?.addEventListener("click", () => shiftDate(-1));
+    document.getElementById("btn-next")?.addEventListener("click", () => shiftDate(+1));
+    picker?.addEventListener("change", () => {
+      renderDay(picker.value || initial);
+    });
+  })();
+</script>
 {% endblock %}
