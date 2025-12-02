@@ -10,12 +10,12 @@
     --diary-right: 320px;
 
     /* Table column widths (left side) */
-    --col-ate:   120px; /* Ate Today cell (amount + unit select) */
-    --col-na:    100px; /* Na/serv (mg) */
-    --col-napct: 100px; /* Sodium % of 1500 (bar) */
-    --col-k:     100px; /* K/serv (mg) */
-    --col-pro:   100px; /* Protein/serv (g) */
-    --col-cal:   100px; /* Calories/serv */
+    --col-ate:   150px; /* Ate Today cell (amount + unit select) */
+    --col-na:    90px; /* Na/serv (mg) */
+    --col-napct: 90px; /* Sodium % of 1500 (bar) */
+    --col-k:     90px; /* K/serv (mg) */
+    --col-pro:   90px; /* Protein/serv (g) */
+    --col-cal:   90px; /* Calories/serv */
   }
 
   @media (max-width: 1200px){
@@ -51,12 +51,24 @@
   #foods-table { table-layout: fixed; width: 100%; border-collapse: separate; border-spacing: 0; }
   #foods-table th, #foods-table td {
     padding: .5rem .6rem;
-    font-size: 15px;
+    /* font-size: 15px; */
     vertical-align: middle;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
+
+    /* Smaller headers */
+    #foods-table th {
+      font-size: 12px;        /* ← pick your size */
+      white-space: normal;
+    }
+
+    /* Body cells stay at 15px (or whatever you like) */
+    #foods-body-table td {
+      font-size: 12px;
+    }
+
   #foods-table th { white-space: normal; }
 
   #foods-table td:first-child, #foods-table th:first-child {

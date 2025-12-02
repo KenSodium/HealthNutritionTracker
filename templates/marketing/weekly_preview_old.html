@@ -4,53 +4,26 @@
 {% block title %}CKD Weekly Summary (Preview){% endblock %}
 
 {% block content %}
+<div style="background: yellow; padding: 4px; font-weight: bold;">
+  DEBUG: weekly_preview template
+</div>
+<div class="page-body">
 <div class="page-body">
   <div class="container-xl py-4">
     <div class="d-flex justify-content-between align-items-start mb-3">
       <div>
         <h1 class="h2 mb-1">CKD Weekly Summary (Preview)</h1>
-
         <div class="text-muted">
           Patient: <strong>{{ patient_name }}</strong><br>
           Period: <strong>{{ meta.from }}</strong> – <strong>{{ meta.to }}</strong><br>
-        </div>
-
-        <!-- Number of days selector: directly under Period line -->
-        <form class="row g-2 align-items-center mt-1"
-              method="get"
-              action="{{ url_for('reports.weekly_preview') }}">
-          <div class="col-auto">
-            <label for="daysInput" class="col-form-label" style="font-size:0.9rem;">
-              Number of days to summarize:
-            </label>
-          </div>
-          <div class="col-auto">
-            <input type="number"
-                   class="form-control form-control-sm"
-                   id="daysInput"
-                   name="days"
-                   min="1"
-                   max="90"
-                   value="{{ meta.window_days }}">
-          </div>
-          <div class="col-auto">
-            <button type="submit" class="btn btn-sm btn-outline-secondary">
-              Update
-            </button>
-          </div>
-        </form>
-
-        <div class="text-muted mt-1" style="font-size:0.9rem;">
           Data for {{ meta.days_with_data }} of {{ meta.window_days }} days in this window.
         </div>
-
         {% if meta.days_with_data > 0 and meta.missing_days > 0 %}
           <div class="text-warning mt-1" style="font-size:0.9rem;">
             Some days are missing; averages are based only on days with logged data.
           </div>
         {% endif %}
       </div>
-
       <div class="d-flex gap-2">
         <a href="{{ url_for('home') }}" class="btn btn-outline-secondary">Home</a>
         <button class="btn btn-primary" onclick="window.print()">Print / Save as PDF</button>
@@ -59,7 +32,7 @@
 
     {% if meta.days_with_data == 0 %}
       <div class="alert alert-info">
-        No data found for the selected period. Log a few days in the
+        No data found for the last 7 days. Log a few days in the
         <a href="{{ url_for('app_daily') }}" class="alert-link">Daily Diary</a>, then return here.
       </div>
     {% else %}
@@ -68,7 +41,7 @@
       <div class="card mb-3">
         <div class="card-body">
           <h2 class="h4 mb-3">
-            Key Nutrients ({{ meta.window_days }}-day averages &amp; ranges)
+            Key Nutrients (7-day averages &amp; ranges)
           </h2>
           <div class="table-responsive">
             <table class="table table-sm align-middle">
@@ -95,8 +68,9 @@
             </table>
           </div>
           <p class="mt-2 mb-0 text-muted" style="font-size:0.85rem;">
-            * Targets based on limits consistent with American Heart Association guidance.
-            Ranges are set by the user in the Daily Diary.
+            * Targets for sodium and potassium come from your Daily Diary settings
+            (based on limits consistent with American Heart Association guidance).
+            Other ranges are illustrative and may be adjusted by your clinician.
           </p>
         </div>
       </div>
@@ -104,9 +78,7 @@
       <!-- Additional nutrients -->
       <div class="card mb-3">
         <div class="card-body">
-          <h2 class="h5 mb-3">
-            Additional Nutrients ({{ meta.window_days }}-day summary)
-          </h2>
+          <h2 class="h5 mb-3">Additional Nutrients (7-day summary)</h2>
           <div class="table-responsive">
             <table class="table table-sm align-middle">
               <thead class="table-light">

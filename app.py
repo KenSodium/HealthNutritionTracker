@@ -645,7 +645,8 @@ def reports_day():
 
 @app.route("/app/reports/share")
 def reports_share():
-    return render_template("reports_share.html")
+    # send the user to the weekly preview report in the reports blueprint
+    return redirect(url_for("reports.weekly_preview"))
 
 # --- Dashboard (signed-in app) ---
 @app.route("/app/dashboard")
