@@ -75,6 +75,9 @@
               <li><a class="dropdown-item" href="{{ url_for('label_entry.index') }}">Enter Nutrition Label</a></li>
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item" href="{{ url_for('search.index') }}">Search USDA</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('univer.univer_curated') }}">Curated Foods (Starter List)</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('univer.univer_curated_admin_upload') }}">  Curated Foods CSV Upload (Admin)</a></li>
+
             {% else %}
               <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('app_foods')) }}">Manage Food List</a></li>
               <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('app_foods_grid')) }}">Foods Grid (experimental)</a></li>
@@ -85,6 +88,7 @@
               <li><a class="dropdown-item" href="{{ url_for('label_entry.index') }}">Enter Nutrition Label</a></li>
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item" href="{{ url_for('login', next=url_for('search.index')) }}">Search USDA</a></li>
+
             {% endif %}
           </ul>
         </li>

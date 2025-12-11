@@ -4,6 +4,10 @@ import os
 import json
 import shutil
 from datetime import datetime
+import csv
+import io
+from datetime import datetime
+
 
 from flask import (
     Blueprint,
@@ -170,6 +174,160 @@ def univer_foods():
     """
     backups = _list_backups()
     return render_template("app/univer_foods.html", backups=backups)
+
+@univer_bp.route("/curated", endpoint="univer_curated")
+def univer_curated():
+    """
+    Page that shows the curated foods list and lets the user add
+    selected foods into the Univer 'My Food List'.
+    """
+    return render_template("app/curated_foods.html")
+
+@univer_bp.route(
+    "/curated-admin-upload",
+    methods=["GET", "POST"],
+    endpoint="univer_curated_admin_upload",
+)
+def curated_admin_upload():
+    """
+    Admin-only page to upload a CSV and overwrite nutrition/data/curated_foods.json.
+
+    Expected CSV header (exactly these names, in any order):
+
+        Food,
+        Serving Size,
+        Serving Unit,
+        Label Units,
+        Unit Type,
+        Sodium (mg),
+        Potassium (mg),
+        Protein (g),
+        Calories,
+        Cholesterol (mg),
+        Carbs (g),
+        Fat (g),
+        Sat Fat (g),
+        Mono Fat (g),
+        Poly Fat (g),
+        Sugar (g),
+        Calcium (mg),
+        Magnesium (mg),
+        Iron (mg)
+    """
+    message = None
+    error = None
+
+    if request.method == "POST":
+        file = request.files.get("file")
+        if not file or file.filename == "":
+            error = "Please choose a CSV file to upload."
+        else:
+            try:
+                # Read and decode (handle UTF-8 with optional BOM)
+                raw = file.read()
+                text = raw.decode("utf-8-sig", errors="replace")
+                f = io.StringIO(text)
+                reader = csv.DictReader(f)
+
+                required_fields = [
+                    "Food",
+                    "Serving Size",
+                    "Serving Unit",
+                    "Label Units",
+                    "Unit Type",
+                    "Sodium (mg)",
+                    "Potassium (mg)",
+                    "Protein (g)",
+                    "Calories",
+                    "Cholesterol (mg)",
+                    "Carbs (g)",
+                    "Fat (g)",
+                    "Sat Fat (g)",
+                    "Mono Fat (g)",
+                    "Poly Fat (g)",
+                    "Sugar (g)",
+                    "Calcium (mg)",
+                    "Magnesium (mg)",
+                    "Iron (mg)",
+                ]
+
+                if not reader.fieldnames:
+                    error = "CSV has no header row."
+                else:
+                    missing = [
+                        col
+                        for col in required_fields
+                        if col not in reader.fieldnames
+                    ]
+                    if missing:
+                        error = (
+                            "CSV is missing required columns: "
+                            + ", ".join(missing)
+                        )
+
+                rows = []
+                if not error:
+                    for row in reader:
+                        # Skip completely empty rows
+                        if not any((v or "").strip() for v in row.values()):
+                            continue
+
+                        out_row = {}
+                        for field in required_fields:
+                            val = row.get(field, "").strip()
+
+                            # For numeric-ish fields, try to convert to float,
+                            # otherwise leave as 0 or empty string.
+                            if field in {
+                                "Serving Size",
+                                "Sodium (mg)",
+                                "Potassium (mg)",
+                                "Protein (g)",
+                                "Calories",
+                                "Cholesterol (mg)",
+                                "Carbs (g)",
+                                "Fat (g)",
+                                "Sat Fat (g)",
+                                "Mono Fat (g)",
+                                "Poly Fat (g)",
+                                "Sugar (g)",
+                                "Calcium (mg)",
+                                "Magnesium (mg)",
+                                "Iron (mg)",
+                            }:
+                                if val == "":
+                                    out_row[field] = 0
+                                else:
+                                    try:
+                                        out_row[field] = float(val)
+                                    except ValueError:
+                                        # If conversion fails, keep raw string
+                                        out_row[field] = val
+                            else:
+                                # Text fields: keep as string
+                                out_row[field] = val
+
+                        rows.append(out_row)
+
+                    # Write out to curated_foods.json
+                    cpath = _curated_path()
+                    os.makedirs(os.path.dirname(cpath), exist_ok=True)
+                    with open(cpath, "w", encoding="utf-8") as out_f:
+                        json.dump(rows, out_f, ensure_ascii=False, indent=2)
+
+                    message = f"Uploaded {len(rows)} curated foods and updated curated_foods.json."
+
+            except Exception as e:
+                current_app.logger.exception(
+                    "Error handling curated CSV upload: %s", e
+                )
+                error = "An unexpected error occurred while processing the CSV."
+
+    return render_template(
+        "app/curated_admin_upload.html",
+        message=message,
+        error=error,
+    )
 
 
 # -------------------------------------------------------------------

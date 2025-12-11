@@ -1,0 +1,81 @@
+{# templates/app/curated_admin_upload.html #}
+{% extends "app_base.html" %}
+
+{% block title %}Curated Foods — Admin CSV Upload{% endblock %}
+
+{% block content %}
+<div class="page-body">
+  <div class="container-xl py-4">
+    <div class="d-flex justify-content-between align-items-start mb-3">
+      <div>
+        <h1 class="h2 mb-1">Curated Foods — Admin CSV Upload</h1>
+        <div class="text-muted">
+          Upload a CSV file to overwrite the <code>curated_foods.json</code> file
+          used by the Curated Foods (Starter List) page.
+        </div>
+      </div>
+      <div class="d-flex flex-column align-items-end gap-2">
+        <a href="{{ url_for('univer.univer_curated') }}" class="btn btn-outline-secondary">
+          View Curated Foods
+        </a>
+        <a href="{{ url_for('univer.univer_foods') }}" class="btn btn-outline-secondary">
+          Go to My Food List (Univer)
+        </a>
+      </div>
+    </div>
+
+    {% if error %}
+      <div class="alert alert-danger">
+        {{ error }}
+      </div>
+    {% endif %}
+
+    {% if message %}
+      <div class="alert alert-success">
+        {{ message }}
+      </div>
+    {% endif %}
+
+    <div class="card mb-3">
+      <div class="card-body">
+        <h2 class="h5 mb-3">Upload CSV</h2>
+        <form method="post" enctype="multipart/form-data" class="row g-3">
+          <div class="col-12">
+            <label for="file" class="form-label">
+              Choose CSV file (with header row):
+            </label>
+            <input type="file"
+                   name="file"
+                   id="file"
+                   accept=".csv,text/csv"
+                   class="form-control">
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Upload and Replace curated_foods.json
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <h2 class="h6 mb-2">Required CSV Header</h2>
+        <p class="text-muted" style="font-size:0.9rem;">
+          The CSV file must have a header row with these exact column names
+          (the order does not matter, but the spelling and spacing must match):
+        </p>
+        <pre class="mb-2" style="font-size:0.85rem; white-space:pre-wrap;">
+Food,Serving Size,Serving Unit,Label Units,Unit Type,Sodium (mg),Potassium (mg),Protein (g),Calories,Cholesterol (mg),Carbs (g),Fat (g),Sat Fat (g),Mono Fat (g),Poly Fat (g),Sugar (g),Calcium (mg),Magnesium (mg),Iron (mg)
+        </pre>
+        <p class="text-muted" style="font-size:0.85rem;">
+          You can maintain this CSV in Excel or another spreadsheet tool. When ready,
+          export to CSV and upload it here. All existing curated foods will be replaced
+          by the contents of the new CSV.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

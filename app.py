@@ -1157,4 +1157,4 @@ app = create_app()  # safe: returns the same global `app`
 
 if __name__ == "__main__":
     print(f"~ Session size (approx): {approx_session_bytes()} bytes")
-    app.run(debug=True)
+    app.run(debug=True, port=5001)

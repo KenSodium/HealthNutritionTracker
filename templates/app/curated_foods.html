@@ -1,0 +1,181 @@
+{# templates/app/curated_foods.html #}
+{% extends "app_base.html" %}
+
+{% block title %}Curated Foods (Starter List){% endblock %}
+
+{% block head_extra %}
+  {# Tabulator CSS #}
+  <link rel="stylesheet"
+        href="{{ url_for('static', filename='vendor/tabulator/dist/css/tabulator.min.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-body">
+  <div class="container-xl py-4">
+    <div class="d-flex justify-content-between align-items-start mb-3">
+      <div>
+        <h1 class="h2 mb-1">Curated Foods (Starter List)</h1>
+        <div class="text-muted">
+          Browse a curated set of foods and add selected items to
+          <strong>My Food List (Univer)</strong>.
+        </div>
+      </div>
+      <div class="d-flex flex-column align-items-end gap-2">
+        <a href="{{ url_for('univer.univer_foods') }}" class="btn btn-outline-secondary">
+          Go to My Food List (Univer)
+        </a>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="row g-2 align-items-center mb-2">
+          <div class="col-auto">
+            <label for="curated-filter" class="col-form-label" style="font-size:0.9rem;">
+              Filter by food name:
+            </label>
+          </div>
+          <div class="col-auto">
+            <input id="curated-filter"
+                   type="text"
+                   class="form-control form-control-sm"
+                   placeholder="Type to filter by Food...">
+          </div>
+          <div class="col-auto">
+            <button id="btn-add-selected"
+                    class="btn btn-sm btn-primary">
+              Add Selected to My Food List (Univer)
+            </button>
+          </div>
+        </div>
+
+        <!-- Tabulator table mount point -->
+        <div id="curated-table"></div>
+      </div>
+    </div>
+
+    <div class="alert alert-info mb-0" style="font-size:0.85rem;">
+      This curated list is read-only and ships with the application. Selected rows are
+      copied into your personal <strong>My Food List (Univer)</strong> as new entries.
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+
+  {# Tabulator JS #}
+  <script src="{{ url_for('static', filename='vendor/tabulator/dist/js/tabulator.min.js') }}"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const tableElem = document.getElementById("curated-table");
+      const filterInput = document.getElementById("curated-filter");
+      const addBtn = document.getElementById("btn-add-selected");
+
+      if (!tableElem) {
+        console.error("curated-table element not found");
+        return;
+      }
+
+      // Fetch curated foods from backend
+      fetch("{{ url_for('univer.api_curated_foods') }}")
+        .then(resp => resp.json())
+        .then(data => {
+          if (!data.ok) {
+            alert("Failed to load curated foods: " + (data.error || "Unknown error"));
+            return;
+          }
+
+          const rows = data.rows || [];
+
+          // Define columns, adding a checkbox selector as the first column
+          const columns = [
+            {formatter:"rowSelection", titleFormatter:"rowSelection", hozAlign:"center", headerSort:false, cellClick:function(e, cell){
+              cell.getRow().toggleSelect();
+            }},
+            { title: "Food", field: "Food", widthGrow: 2 },
+            { title: "Serving Size", field: "Serving Size", hozAlign: "right" },
+            { title: "Serving Unit", field: "Serving Unit" },
+            { title: "Label Units", field: "Label Units" },
+            { title: "Unit Type", field: "Unit Type" },
+            { title: "Sodium (mg)", field: "Sodium (mg)", hozAlign: "right" },
+            { title: "Potassium (mg)", field: "Potassium (mg)", hozAlign: "right" },
+            { title: "Protein (g)", field: "Protein (g)", hozAlign: "right" },
+            { title: "Calories", field: "Calories", hozAlign: "right" },
+            { title: "Cholesterol (mg)", field: "Cholesterol (mg)", hozAlign: "right" },
+            { title: "Carbs (g)", field: "Carbs (g)", hozAlign: "right" },
+            { title: "Fat (g)", field: "Fat (g)", hozAlign: "right" },
+            { title: "Sat Fat (g)", field: "Sat Fat (g)", hozAlign: "right" },
+            { title: "Mono Fat (g)", field: "Mono Fat (g)", hozAlign: "right" },
+            { title: "Poly Fat (g)", field: "Poly Fat (g)", hozAlign: "right" },
+            { title: "Sugar (g)", field: "Sugar (g)", hozAlign: "right" },
+            { title: "Calcium (mg)", field: "Calcium (mg)", hozAlign: "right" },
+            { title: "Magnesium (mg)", field: "Magnesium (mg)", hozAlign: "right" },
+            { title: "Iron (mg)", field: "Iron (mg)", hozAlign: "right" }
+          ];
+
+          const table = new Tabulator(tableElem, {
+            data: rows,
+            layout: "fitDataStretch",
+            selectable: "highlight", // Highlight selected rows
+            height: "500px",
+            columns: columns
+          });
+
+          // Simple "filter by Food" input
+          if (filterInput) {
+            filterInput.addEventListener("input", function () {
+              const val = filterInput.value.trim();
+              if (!val) {
+                table.clearFilter(true);
+              } else {
+                table.setFilter("Food", "like", val);
+              }
+            });
+          }
+
+          // Add Selected -> call /univer/api/add-curated
+          if (addBtn) {
+            addBtn.addEventListener("click", function () {
+              const selected = table.getSelectedData(); // array of row data objects
+              if (!selected || selected.length === 0) {
+                alert("Please select one or more foods to add.");
+                return;
+              }
+
+              fetch("{{ url_for('univer.api_add_curated') }}", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ rows: selected }),
+              })
+              .then(resp => resp.json())
+              .then(result => {
+                if (!result.ok) {
+                  alert("Failed to add curated foods: " + (result.error || "Unknown error"));
+                  return;
+                }
+                const added = result.added || 0;
+                if (added === 0) {
+                  alert("No new foods were added (they may already exist in your Univer sheet).");
+                } else {
+                  alert("Added " + added + " food(s) to My Food List (Univer).");
+                }
+              })
+              .catch(err => {
+                console.error("Error calling /api/add-curated:", err);
+                alert("Error adding curated foods. See console for details.");
+              });
+            });
+          }
+        })
+        .catch(err => {
+          console.error("Error loading curated foods:", err);
+          alert("Error loading curated foods. See console for details.");
+        });
+    });
+  </script>
+{% endblock %}
