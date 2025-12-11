@@ -1,0 +1,18 @@
+Error: 'is_default'
+
+Traceback:
+Traceback (most recent call last):
+  File "C:\Users\krieg\Documents\HealthNutritionTracker\make_foundation_canonical_csv.py", line 192, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\krieg\Documents\HealthNutritionTracker\make_foundation_canonical_csv.py", line 111, in main
+    fp = fp.sort_values(
+        by=["fdc_id", "is_default", "seq_num"],
+        ascending=[True, False, True]
+    )
+  File "C:\Users\krieg\Documents\SodiumCoachDevelopmentVersion\.venv\Lib\site-packages\pandas\core\frame.py", line 7179, in sort_values
+    keys = [self._get_label_or_level_values(x, axis=axis) for x in by]
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "C:\Users\krieg\Documents\SodiumCoachDevelopmentVersion\.venv\Lib\site-packages\pandas\core\generic.py", line 1911, in _get_label_or_level_values
+    raise KeyError(key)
+KeyError: 'is_default'
