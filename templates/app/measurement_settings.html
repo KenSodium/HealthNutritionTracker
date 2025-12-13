@@ -1,0 +1,110 @@
+{# templates/app/measurement_settings.html #}
+{% extends "app_base.html" %}
+
+{% block title %}Measurement Settings{% endblock %}
+
+{% block content %}
+<div class="page-body">
+  <div class="container-xl py-4">
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <h1 class="h2 mb-1">Measurement Settings</h1>
+            <div class="text-muted">
+                Choose how you want to enter amounts in your Daily Diary.
+            </div>
+        </div>
+        <button id="btn-save-settings" class="btn btn-primary">Save Settings</button>
+    </div>
+
+    <div class="alert alert-info">
+      <strong>Note:</strong> The default measurement method for all foods is <strong>grams</strong>.
+      You will only see an alternative option if a specific unit (like 'slice' or 'cup') is defined for that food in your Univer food list.
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <table class="table table-vcenter">
+          <thead>
+            <tr>
+              <th>Food</th>
+              <th class="w-50">Measurement Method</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for food in foods %}
+            <tr data-food-name="{{ food.name }}">
+              <td>{{ food.name }}</td>
+              <td>
+                {% if food.unit_type and food.unit_type.lower().strip() not in ['', 'gram', 'grams'] %}
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="radio-{{ food.name | replace(' ', '_') }}" id="grams-{{ loop.index }}" value="grams" checked>
+                    <label class="form-check-label" for="grams-{{ loop.index }}">Use Grams</label>
+                  </div>
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="radio-{{ food.name | replace(' ', '_') }}" id="unit-{{ loop.index }}" value="{{ food.unit_type }}">
+                    <label class="form-check-label" for="unit-{{ loop.index }}">Use {{ food.unit_type }}</label>
+                  </div>
+                {% else %}
+                  <span class="text-muted">Grams (default)</span>
+                  <input type="hidden" name="radio-{{ food.name | replace(' ', '_') }}" value="grams">
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const saveBtn = document.getElementById('btn-save-settings');
+    const SETTINGS_KEY = 'diaryMeasurementSettings';
+
+    // Load saved settings from localStorage and apply them to the radio buttons
+    function loadSettings() {
+        const savedSettings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+        document.querySelectorAll('tr[data-food-name]').forEach(tr => {
+            const foodName = tr.dataset.foodName;
+            const setting = savedSettings[foodName];
+            if (setting) {
+                const radio = tr.querySelector(`input[type="radio"][value="${setting}"]`);
+                if (radio) {
+                    radio.checked = true;
+                }
+            }
+        });
+    }
+
+    // Save the current settings to localStorage
+    function saveSettings() {
+        const settings = {};
+        document.querySelectorAll('tr[data-food-name]').forEach(tr => {
+            const foodName = tr.dataset.foodName;
+            const checkedRadio = tr.querySelector('input[type="radio"]:checked');
+            if (checkedRadio) {
+                settings[foodName] = checkedRadio.value;
+            } else {
+                // Handle the hidden input case for default 'grams'
+                const hiddenInput = tr.querySelector('input[type="hidden"]');
+                if (hiddenInput) {
+                    settings[foodName] = hiddenInput.value;
+                }
+            }
+        });
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+        alert('Settings saved!');
+    }
+
+    saveBtn.addEventListener('click', saveSettings);
+
+    // Load settings when the page loads
+    loadSettings();
+});
+</script>
+{% endblock %}

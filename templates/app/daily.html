@@ -10,7 +10,7 @@
     --diary-right: 320px;
 
     /* Table column widths (left side) */
-    --col-ate:   150px; /* Ate Today cell (amount + unit select) */
+    --col-ate:   180px; /* Ate Today cell (amount + unit select) */
     --col-na:    90px; /* Na/serv (mg) */
     --col-napct: 90px; /* Sodium % of 1500 (bar) */
     --col-k:     90px; /* K/serv (mg) */
@@ -51,20 +51,17 @@
   #foods-table { table-layout: fixed; width: 100%; border-collapse: separate; border-spacing: 0; }
   #foods-table th, #foods-table td {
     padding: .5rem .6rem;
-    /* font-size: 15px; */
     vertical-align: middle;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-    /* Smaller headers */
     #foods-table th {
-      font-size: 12px;        /* ← pick your size */
+      font-size: 12px;
       white-space: normal;
     }
 
-    /* Body cells stay at 15px (or whatever you like) */
     #foods-body-table td {
       font-size: 12px;
     }
@@ -77,7 +74,7 @@
 
   .ate-wrap {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: auto 1fr;
     gap: .35rem;
     align-items: center;
   }
@@ -85,9 +82,10 @@
     width: 100%;
     text-align: right;
   }
-  .unit-select {
-    width: 100%;
-    min-width: 0;
+  .unit-label {
+    font-size: 11px;
+    color: #666;
+    white-space: nowrap;
   }
 
   .sodbar {
@@ -129,11 +127,10 @@
     position: relative;
     height: 18px;
     border-radius: 5px;
-    background: #f8f9fa;  /* neutral background */
+    background: #f8f9fa;
     overflow: hidden;
   }
 
-  /* Three segments: below range (blue), in-range (green), over-range (red) */
   .meter-fill-below,
   .meter-fill-in,
   .meter-fill-over {
@@ -144,17 +141,16 @@
     transition: left 140ms ease-out, width 140ms ease-out, background-color 140ms ease-out;
   }
 
-  .meter-fill-below { left: 0; background: #d0ebff; }    /* light blue */
-  .meter-fill-in    { background: #51cf66; }              /* bright green */
-  .meter-fill-over  { background: #ff6b6b; }              /* bright red */
+  .meter-fill-below { left: 0; background: #d0ebff; }
+  .meter-fill-in    { background: #51cf66; }
+  .meter-fill-over  { background: #ff6b6b; }
 
-  /* Vertical markers for low and high thresholds */
   .meter-marker {
     position: absolute;
     top: 0;
     bottom: 0;
     width: 2px;
-    background: #5c7cfa; /* navy-ish marker */
+    background: #5c7cfa;
     opacity: 0.9;
     transform: translateX(-1px);
     pointer-events: none;
@@ -193,49 +189,41 @@
 {% endblock %}
 
 {% block content %}
-<div style="
-  position: fixed;
-  top: 4px;
-  right: 10px;
-  z-index: 9999;
-  background: yellow;
-  color: black;
-  padding: 4px 8px;
-  font-size: 12px;
-  border: 1px solid #000;
-">
-  DAILY v4 — app/daily.html
-</div>
 <div class="page-wrapper">
   <div class="container-xl">
     <div class="page-header d-print-none">
-  <div class="row align-items-center">
-    <div class="col">
-      <h2 class="page-title">Daily Diary</h2>
-      <div class="text-muted mt-1">Log what you ate — fast.</div>
+      <div class="row align-items-center">
+        <div class="col">
+          <h2 class="page-title">Daily Diary</h2>
+          <div class="text-muted mt-1">Log what you ate — fast.</div>
 
-      <div class="mt-3 d-flex flex-wrap align-items-center gap-3">
-        <div class="d-flex flex-wrap align-items-baseline gap-2">
-          <span class="fw-semibold">Date:</span>
-          <span class="h4 mb-0" id="diary-date-display"></span>
-          <span class="text-muted ms-2">You are entering data for this date.</span>
+          <div class="mt-3 d-flex flex-wrap align-items-center gap-3">
+            <div class="d-flex flex-wrap align-items-baseline gap-2">
+              <span class="fw-semibold">Date:</span>
+              <span class="h4 mb-0" id="diary-date-display"></span>
+              <span class="text-muted ms-2">You are entering data for this date.</span>
+            </div>
+
+            <button
+              type="button"
+              class="btn btn-success"
+              id="btn-save-history"
+            >
+              Save to History
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline-danger ms-auto"
+              id="btn-clear-diary"
+            >
+              Clear Daily Diary
+            </button>
+          </div>
+
+          <input type="hidden" id="day-picker" value="{{ today }}">
         </div>
-
-        <button
-          type="button"
-          class="btn btn-success"
-          id="btn-save-history"
-        >
-          Save to History
-        </button>
       </div>
-
-      <!-- Hidden input so the existing JS still knows the current date -->
-      <input type="hidden" id="day-picker" value="{{ today }}">
     </div>
-  </div>
-</div>
-
 
     <div class="daily-layout">
       <!-- LEFT: Foods table -->
@@ -301,7 +289,6 @@
           </table>
         </div>
 
-
         <div class="card-footer d-grid gap-2">
           <a class="btn btn-outline" href="{{ url_for('reports_day') }}">View day report</a>
         </div>
@@ -317,21 +304,30 @@
 <script>
   // ================= Constants & Setup =================
   const GOALS = { na: 1500, k: 3400, pro: 70, cal: 1500 };
-  const SCALE = 1.25;  // bar extends to 125% of high threshold
+  const SCALE = 1.25;
   const $ = (s, r=document) => r.querySelector(s);
+  const SETTINGS_KEY = 'diaryMeasurementSettings';
 
   let FOODS = [];
   let DATE_ISO = null;
+  let MEASUREMENT_SETTINGS = {};
 
-  // Per-nutrient low/high ranges (defaults: 0–GOAL)
   let GOAL_RANGES = {
-    na:  { low: 0,       high: GOALS.na },
-    k:   { low: 0,       high: GOALS.k },
-    pro: { low: 0,       high: GOALS.pro },
-    cal: { low: 0,       high: GOALS.cal },
+    na:  { low: 0, high: GOALS.na },
+    k:   { low: 0, high: GOALS.k },
+    pro: { low: 0, high: GOALS.pro },
+    cal: { low: 0, high: GOALS.cal },
   };
 
-  // Restore goal ranges from localStorage, if present
+  function loadMeasurementSettings() {
+    try {
+        MEASUREMENT_SETTINGS = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+    } catch (e) {
+        console.warn("Failed to load measurement settings", e);
+        MEASUREMENT_SETTINGS = {};
+    }
+  }
+
   function loadGoalRanges(){
     try {
       const raw = localStorage.getItem("diary-goal-ranges-v2");
@@ -392,12 +388,10 @@
     }
 
     saveGoalRanges();
-    updateTotals(); // re-color + re-position markers
+    updateTotals();
   }
 
-  // ================= Load Foods from Univer API =================
   async function loadFoodsFromUniver(){
-    // Univer-backed table: /univer/api/foods-table -> { ok: true, rows: [headerRow, row1, ...] }
     const resp = await fetch('/univer/api/foods-table', { credentials: 'same-origin' });
     if (!resp.ok) throw new Error('Failed to load Univer foods-table: HTTP ' + resp.status);
     const js = await resp.json();
@@ -479,7 +473,6 @@
     FOODS = out;
   }
 
-  // ================= Layout & styling helpers =================
   function sodiumBarCell(percent){
     const pct = Math.max(0, Math.min(percent, 100 * SCALE));
     return `
@@ -489,26 +482,23 @@
     `;
   }
 
-  // ================= Render Foods Table =================
   function renderFoods(){
     const tbody = $("#foods-body");
     tbody.innerHTML = "";
 
     for (const f of FOODS){
       const tr = document.createElement("tr");
+      const measurementUnit = MEASUREMENT_SETTINGS[f.food] || 'grams';
+      const labelText = measurementUnit === 'grams' ? 'Enter gram weight' : `Enter number of ${measurementUnit}`;
+
       tr.innerHTML = `
         <td title="${f.food}">${f.food}</td>
         <td>
           <div class="ate-wrap">
+            <span class="unit-label">${labelText}</span>
             <input class="form-control form-control-sm amount" type="number" step="0.25" min="0" value="0">
-            <select class="form-select form-select-sm unit-select">
-              <option value="units" selected># Units</option>
-              <option value="g">Grams</option>
-              <option value="oz">Ounces</option>
-            </select>
           </div>
         </td>
-        <!-- Start these displayed values at 0; we keep per-serving in data-* -->
         <td class="text-end na">0</td>
         <td class="sodbar-cell">${sodiumBarCell(0)}</td>
         <td class="text-end k">0</td>
@@ -516,15 +506,12 @@
         <td class="text-end cal">0</td>
       `;
 
-      // store per-serving values in dataset
       tr.dataset.food  = f.food ?? "";
-
       tr.dataset.na    = f.na    ?? 0;
       tr.dataset.k     = f.k     ?? 0;
       tr.dataset.pro   = f.pro   ?? 0;
       tr.dataset.cal   = f.cal   ?? 0;
       tr.dataset.chol  = f.chol  ?? 0;
-
       tr.dataset.carbs = f.carbs ?? 0;
       tr.dataset.fat   = f.fat   ?? 0;
       tr.dataset.sat   = f.sat   ?? 0;
@@ -534,43 +521,32 @@
       tr.dataset.ca    = f.ca    ?? 0;
       tr.dataset.mg    = f.mg    ?? 0;
       tr.dataset.iron  = f.iron  ?? 0;
-
       tr.dataset.labelUnits = f.labelUnits ?? 1;
+      tr.dataset.servingSize = f.servingSize ?? 100;
+      tr.dataset.unit = measurementUnit;
 
       const input = tr.querySelector("input.amount");
-      input.addEventListener("change", onAmountChange);
+      input.addEventListener("input", onAmountChange);
       input.addEventListener("keydown", (e) => {
         if (e.key === "Enter") e.currentTarget.blur();
-      });
-
-      const unitSel = tr.querySelector(".unit-select");
-      unitSel.addEventListener("change", () => {
-        tr.dataset.unit = unitSel.value;
-        updateRowSodiumBar(tr);
-        updateRowNutrientCells(tr);
-        updateTotals();
-        scheduleAutosaveFullDay();
       });
 
       tbody.appendChild(tr);
     }
   }
 
-  // -------- Helper: effective servings for this row ------------------
   function effectiveServings(tr){
     const amt = Number(tr.querySelector("input.amount").value) || 0;
-    const unit = tr.dataset.unit || (tr.querySelector(".unit-select")?.value || "units");
-    const labelUnits = Number(tr.dataset.labelUnits || 0) || 1;
+    const unit = tr.dataset.unit || 'grams';
+    const servingSize = Number(tr.dataset.servingSize) || 100;
 
-    if (unit === "units") {
-      // amt = number of bars/slices; labelUnits = bars per label serving
-      return amt / labelUnits;
+    if (unit === 'grams') {
+        return amt / servingSize;
+    } else {
+        return amt;
     }
-    // For now, grams/oz behave like "servings" (same as before).
-    return amt;
   }
 
-  // ================= Totals Panel =================
   function ensureTotalsPanel(){
     const host = $("#totals-panel");
     if (!host) return;
@@ -640,14 +616,13 @@
     }
   }
 
-  // ================= Update on Input =================
   function onAmountChange(e){
     const tr = e.target.closest("tr");
     if (!tr) return;
     updateRowSodiumBar(tr);
     updateRowNutrientCells(tr);
     updateTotals();
-    scheduleAutosaveFullDay();
+    saveDraft();
   }
 
   function updateRowSodiumBar(tr){
@@ -659,7 +634,6 @@
     if (fill) fill.style.width = `${Math.max(0, Math.min(pct, 100))}%`;
   }
 
-  // NEW: update Na/serv, K/serv, Protein, Calories cells with multiplied amounts
   function updateRowNutrientCells(tr){
     const servings = effectiveServings(tr);
 
@@ -679,7 +653,6 @@
     if (calCell) calCell.textContent = Math.round(calVal).toLocaleString();
   }
 
-  // ================= All math (meters + full list) =================
   function sumFromTable(){
     const total = {
       na:0, k:0, pro:0, cal:0, chol:0,
@@ -727,34 +700,28 @@
     const highInput = document.querySelector(`#m-${key}-high`);
     if (!belowEl || !inEl || !overEl || !valEl) return;
 
-    // keep inputs & text in sync with current interpreted range
     if (lowInput)  lowInput.value  = low;
     if (highInput) highInput.value = high;
 
     const lowPct  = Math.max(0, Math.min((low  / cap) * 100, 100));
     const highPct = Math.max(lowPct, Math.min((high / cap) * 100, 100));
 
-    const belowWidth = Math.min(pct, lowPct);                // 0 → low
-    const inWidth    = Math.max(0, Math.min(pct, highPct) - lowPct);  // low → min(value, high)
-    const overWidth  = Math.max(0, pct - highPct);           // high → value
+    const belowWidth = Math.min(pct, lowPct);
+    const inWidth    = Math.max(0, Math.min(pct, highPct) - lowPct);
+    const overWidth  = Math.max(0, pct - highPct);
 
-    // Below-range segment
     belowEl.style.left  = "0%";
     belowEl.style.width = `${belowWidth}%`;
 
-    // In-range segment
     inEl.style.left  = `${lowPct}%`;
     inEl.style.width = `${inWidth}%`;
 
-    // Over-range segment
     overEl.style.left  = `${highPct}%`;
     overEl.style.width = `${overWidth}%`;
 
-    // Markers
     if (lowMark)  lowMark.style.left  = `${lowPct}%`;
     if (highMark) highMark.style.left = `${highPct}%`;
 
-    // Label
     const displayVal = unit
       ? `${Math.round(value).toLocaleString()} ${unit}`
       : `${Math.round(value).toLocaleString()}`;
@@ -799,7 +766,6 @@
     renderAllTotals();
   }
 
-  // ================= Save payload helpers =================
   function totalsForHistory(){
     const t = sumFromTable();
     return {
@@ -831,7 +797,7 @@
       rows.push({
         food:           tr.dataset.food || "",
         amount:         amt,
-        unit:           tr.dataset.unit || (tr.querySelector(".unit-select")?.value || "units"),
+        unit:           tr.dataset.unit || 'grams',
         sodium_mg:      num("na"),
         potassium_mg:   num("k"),
         protein_g:      num("pro"),
@@ -848,19 +814,69 @@
     return rows;
   }
 
-  // ================= Live full-day load/save =================
-  let autosaveTimer = null;
+  function saveDraft() {
+    const date = DATE_ISO;
+    if (!date) return;
+
+    const entries = [];
+    document.querySelectorAll("#foods-body tr").forEach(tr => {
+        const foodName = tr.dataset.food;
+        const amount = tr.querySelector("input.amount").value;
+        if (foodName && amount !== "" && Number(amount) !== 0) {
+            entries.push({ food: foodName, amount: amount });
+        }
+    });
+
+    try {
+        if (entries.length > 0) {
+            localStorage.setItem(`diary-draft-${date}`, JSON.stringify(entries));
+        } else {
+            localStorage.removeItem(`diary-draft-${date}`);
+        }
+    } catch (e) {
+        console.warn("Failed to save draft to localStorage", e);
+    }
+  }
+
+  function loadDraft() {
+    const date = DATE_ISO;
+    if (!date) return;
+
+    try {
+        const draft = localStorage.getItem(`diary-draft-${date}`);
+        if (!draft) return;
+
+        const entries = JSON.parse(draft);
+        const entriesByFood = {};
+        entries.forEach(e => { entriesByFood[e.food.toLowerCase()] = e; });
+
+        document.querySelectorAll("#foods-body tr").forEach(tr => {
+            const foodName = tr.dataset.food.toLowerCase();
+            const entry = entriesByFood[foodName];
+            if (entry) {
+                const input = tr.querySelector("input.amount");
+                if (input) {
+                    input.value = entry.amount;
+                    updateRowNutrientCells(tr);
+                    updateRowSodiumBar(tr);
+                }
+            }
+        });
+    } catch (e) {
+        console.warn("Failed to load draft from localStorage", e);
+    }
+  }
 
   async function loadFullDayForCurrentDate() {
-    const picker = document.getElementById("day-picker");
-    const date = (picker && picker.value) ? picker.value : DATE_ISO;
+    const date = DATE_ISO;
     if (!date) return;
+
+    clearDiaryInputs();
 
     try {
       const url = window.__HISTORY_API__?.full_get;
       if (!url) {
         console.warn("No full_get URL wired.");
-        clearDiaryInputs();
         return;
       }
 
@@ -869,46 +885,35 @@
       });
 
       if (resp.status === 404) {
-        console.log("No saved full-day for", date, "-> clearing diary only.");
-        clearDiaryInputs();
-        return;
-      }
-
-      if (!resp.ok) {
+        console.log("No saved full-day for", date);
+      } else if (!resp.ok) {
         throw new Error("HTTP " + resp.status);
+      } else {
+        const js = await resp.json();
+        if (!js.ok || !js.day) {
+          throw new Error("Bad full-day JSON");
+        }
+        const entries = js.day.entries || [];
+        applyEntriesToDiary(entries);
       }
-
-      const js = await resp.json();
-      if (!js.ok || !js.day) {
-        throw new Error("Bad full-day JSON");
-      }
-
-      const entries = js.day.entries || [];
-      applyEntriesToDiary(entries);
     } catch (err) {
       console.error("loadFullDayForCurrentDate error", err);
-      clearDiaryInputs();
+    } finally {
+        loadDraft();
+        updateTotals();
     }
   }
 
   function clearDiaryInputs() {
     document.querySelectorAll("#foods-body tr").forEach(tr => {
       const amt = tr.querySelector("input.amount");
-      const unitSel = tr.querySelector(".unit-select");
       if (amt) amt.value = "0";
-      if (unitSel) {
-        unitSel.value = "units";
-        tr.dataset.unit = "units";
-      }
-      updateRowSodiumBar(tr);
       updateRowNutrientCells(tr);
+      updateRowSodiumBar(tr);
     });
-    updateTotals();
   }
 
   function applyEntriesToDiary(entries) {
-    clearDiaryInputs();
-
     const byFood = {};
     (entries || []).forEach(e => {
       if (!e.food) return;
@@ -921,150 +926,13 @@
       if (!e) return;
 
       const amt = tr.querySelector("input.amount");
-      const unitSel = tr.querySelector(".unit-select");
-
       if (amt) amt.value = (e.amount != null ? e.amount : 0);
-      if (unitSel) {
-        const unit = e.unit || "units";
-        unitSel.value = unit;
-        tr.dataset.unit = unit;
-      }
 
-      updateRowSodiumBar(tr);
       updateRowNutrientCells(tr);
-    });
-
-    updateTotals();
-  }
-
-  function scheduleAutosaveFullDay() {
-    if (!window.__HISTORY_API__?.full_save) return;
-    if (autosaveTimer) window.clearTimeout(autosaveTimer);
-    autosaveTimer = window.setTimeout(autosaveFullDay, 800);
-  }
-
-  async function autosaveFullDay() {
-    autosaveTimer = null;
-    const date = (document.querySelector("#day-picker")?.value || "").trim();
-    if (!date) return;
-
-    const payload = {
-      date,
-      entries: collectEntries()
-    };
-
-    try {
-      const res = await fetch(window.__HISTORY_API__.full_save, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify(payload)
-      });
-      const js = await res.json().catch(() => ({}));
-      if (!res.ok || !js.ok) {
-        console.warn("Autosave failed:", js.error || res.status);
-      } else {
-        console.debug("Autosaved full day for", date);
-      }
-    } catch (err) {
-      console.error("Autosave error:", err);
-    }
-  }
-
-  // ================= Live draft save/load (localStorage) =================
-  function saveDraftForDate(date){
-    if (!date) return;
-    const rows = [];
-    document.querySelectorAll("#foods-body tr").forEach(tr => {
-      const amtInput = tr.querySelector("input.amount");
-      const unitSel  = tr.querySelector(".unit-select");
-      if (!amtInput || !unitSel) return;
-
-      const food = tr.dataset.food || "";
-      if (!food) return;
-
-      const rawAmt = amtInput.value;
-      const amount = rawAmt === "" ? "" : (Number(rawAmt) || 0);
-      const unit   = tr.dataset.unit || unitSel.value || "units";
-
-      rows.push({ food, amount, unit });
-    });
-
-    const key = "diary-draft-" + date;
-    try {
-      localStorage.setItem(key, JSON.stringify({ date, rows }));
-    } catch (e) {
-      console.warn("Draft save failed", e);
-    }
-  }
-
-  function loadDraftForDate(date){
-    if (!date) return;
-    const key = "diary-draft-" + date;
-    let raw = null;
-
-    try {
-      raw = localStorage.getItem(key);
-    } catch (e) {
-      console.warn("Draft load failed", e);
-      return;
-    }
-
-    if (!raw) {
-      document.querySelectorAll("#foods-body tr").forEach(tr => {
-        const amtInput = tr.querySelector("input.amount");
-        const unitSel  = tr.querySelector(".unit-select");
-        if (amtInput) amtInput.value = "0";
-        if (unitSel) {
-          unitSel.value = "units";
-          tr.dataset.unit = "units";
-        }
-        updateRowSodiumBar(tr);
-        updateRowNutrientCells(tr);
-      });
-      updateTotals();
-      return;
-    }
-
-    let data;
-    try {
-      data = JSON.parse(raw);
-    } catch (e) {
-      console.warn("Bad draft JSON", e);
-      return;
-    }
-
-    const rowsByFood = {};
-    (data.rows || []).forEach(r => {
-      if (r.food) rowsByFood[r.food] = r;
-    });
-
-    document.querySelectorAll("#foods-body tr").forEach(tr => {
-      const food = tr.dataset.food || "";
-      const rec  = rowsByFood[food];
-
-      const amtInput = tr.querySelector("input.amount");
-      const unitSel  = tr.querySelector(".unit-select");
-      if (!amtInput || !unitSel) return;
-
-      if (rec) {
-        amtInput.value = rec.amount === "" ? "" : (rec.amount ?? 0);
-        unitSel.value  = rec.unit || "units";
-        tr.dataset.unit = unitSel.value;
-      } else {
-        amtInput.value = "0";
-        unitSel.value  = "units";
-        tr.dataset.unit = "units";
-      }
-
       updateRowSodiumBar(tr);
-      updateRowNutrientCells(tr);
     });
-
-    updateTotals();
   }
 
-  // ================= Date controls =================
   function dateFromIso(iso) {
     const [y, m, d] = iso.split("-").map(Number);
     return new Date(y, m - 1, d);
@@ -1073,7 +941,7 @@
   function toIsoDate(d) {
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate() + 0).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
     return `${yyyy}-${mm}-${dd}`;
   }
 
@@ -1085,59 +953,32 @@
   }
 
   function initDate() {
-  const picker = document.getElementById("day-picker");
-
-  if (picker) {
-    // If template didn't give us a value, default to today in ISO form
-    if (!picker.value) {
-      const today = new Date();
-      picker.value = toIsoDate(today);
-    }
-    DATE_ISO = picker.value;
-    updateDisplayedDate();  // <-- IMPORTANT
-
-    picker.addEventListener("change", () => {
-      DATE_ISO = picker.value || DATE_ISO;
-      updateDisplayedDate();  // <-- IMPORTANT
-      loadFullDayForCurrentDate();
-    });
-  } else {
-    const today = new Date();
-    DATE_ISO = toIsoDate(today);
-    updateDisplayedDate();    // <-- IMPORTANT
-  }
-
-  // Prev/next buttons no longer exist, but leaving this is harmless
-  document.getElementById("btn-prev")?.addEventListener("click", () => shiftDate(-1));
-  document.getElementById("btn-next")?.addEventListener("click", () => shiftDate(+1));
-}
-
-  function shiftDate(delta) {
     const picker = document.getElementById("day-picker");
-    const baseStr = (picker && picker.value) || DATE_ISO;
 
-    const d = dateFromIso(baseStr || DATE_ISO);
-    d.setDate(d.getDate() + delta);
+    if (picker) {
+      if (!picker.value) {
+        const today = new Date();
+        picker.value = toIsoDate(today);
+      }
+      DATE_ISO = picker.value;
+      updateDisplayedDate();
 
-    const newIso = toIsoDate(d);
-    DATE_ISO = newIso;
-    if (picker) picker.value = newIso;
-    updateDisplayedDate();
-
-    console.log("shiftDate", { delta, baseStr, newIso });
-
-    if (typeof loadFullDayForCurrentDate === "function") {
-      loadFullDayForCurrentDate();
+      picker.addEventListener("change", () => {
+        DATE_ISO = picker.value || DATE_ISO;
+        updateDisplayedDate();
+        loadFullDayForCurrentDate();
+      });
+    } else {
+      const today = new Date();
+      DATE_ISO = toIsoDate(today);
+      updateDisplayedDate();
     }
-
   }
 
-  // ================= API wiring =================
   window.__HISTORY_API__ = Object.assign(window.__HISTORY_API__ || {}, {
     save:      "{{ url_for('history.api_day_save') }}",
     get:       "{{ url_for('history.api_day_get') }}",
-    full_get:  "{{ url_for('history.api_full_day_get') }}",
-    full_save: "{{ url_for('history.api_full_day_autosave') }}"
+    full_get:  "{{ url_for('history.api_full_day_get') }}"
   });
 
   async function handleSaveToHistory(ev){
@@ -1168,6 +1009,7 @@
         btn.textContent = "Saved";
       }
       alert("Saved day " + date);
+      localStorage.removeItem(`diary-draft-${date}`);
     }catch(e){
       console.error(e);
       alert("Save failed: " + e.message);
@@ -1175,14 +1017,28 @@
     }
   }
 
-  // ================= Boot =================
+  function clearDiaryAndDraft() {
+    if (!confirm("Are you sure you want to clear all amounts for this day? This cannot be undone.")) {
+        return;
+    }
+    clearDiaryInputs();
+    updateTotals();
+    saveDraft(); // This will save an empty draft, effectively clearing it
+  }
+
+  function refreshDisplay() {
+      loadMeasurementSettings();
+      renderFoods();
+      loadFullDayForCurrentDate();
+  }
+
   (async function boot(){
     try{
+      initDate();
       await loadFoodsFromUniver();
-      renderFoods();
       loadGoalRanges();
       ensureTotalsPanel();
-      updateTotals();
+      refreshDisplay();
     }catch(err){
       console.error(err);
       renderFoods();
@@ -1190,9 +1046,14 @@
       ensureTotalsPanel();
       updateTotals();
     }
-    initDate();
-    await loadFullDayForCurrentDate();
     document.getElementById("btn-save-history")?.addEventListener("click", handleSaveToHistory);
+    document.getElementById("btn-clear-diary")?.addEventListener("click", clearDiaryAndDraft);
   })();
+
+  window.addEventListener('pageshow', function(event) {
+      if (event.persisted) {
+          refreshDisplay();
+      }
+  });
 </script>
 {% endblock %}

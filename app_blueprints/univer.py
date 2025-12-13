@@ -175,6 +175,27 @@ def univer_foods():
     backups = _list_backups()
     return render_template("app/univer_foods.html", backups=backups)
 
+@univer_bp.route("/measurement-settings")
+def measurement_settings():
+    """
+    Page for setting the measurement method for each food.
+    """
+    rows = _load_univer_rows()
+    header = _get_univer_header(rows)
+    
+    foods = []
+    if header:
+        food_idx = header.index("Food")
+        unit_type_idx = header.index("Unit Type")
+        
+        for row in rows[1:]:
+            foods.append({
+                "name": row[food_idx],
+                "unit_type": row[unit_type_idx]
+            })
+            
+    return render_template("app/measurement_settings.html", foods=foods)
+
 @univer_bp.route("/curated", endpoint="univer_curated")
 def univer_curated():
     """
