@@ -1,0 +1,4 @@
+.flask_session/
+.venv/
+.vendor/softui/css/
+.external Libraries/

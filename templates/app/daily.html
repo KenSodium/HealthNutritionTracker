@@ -36,9 +36,37 @@
     overflow: auto;
     background: var(--tblr-body-bg, #fff);
   }
-  .table-head {
+
+  /* ---- Order bar (Option B) -------------------------------------------- */
+  .order-bar{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--tblr-border-color, #dadde1);
+    background: var(--tblr-card-bg, #fff);
     position: sticky;
     top: 0;
+    z-index: 3;
+  }
+  .order-bar .left{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap: wrap;
+  }
+  .order-bar select{
+    font-size: 12px;
+    padding: 3px 6px;
+  }
+  .order-bar .hint{
+    font-size: 12px;
+    color: #666;
+  }
+
+  .table-head {
+    position: sticky;
+    top: 44px; /* leave room for order bar */
     z-index: 2;
     background: var(--tblr-card-bg, #fff);
     border-bottom: 1px solid var(--tblr-border-color, #dadde1);
@@ -57,19 +85,68 @@
     text-overflow: ellipsis;
   }
 
-    #foods-table th {
-      font-size: 12px;
-      white-space: normal;
-    }
+  #foods-table th {
+    font-size: 12px;
+    white-space: normal;
+  }
 
-    #foods-body-table td {
-      font-size: 12px;
-    }
-
-  #foods-table th { white-space: normal; }
+  #foods-body-table td {
+    font-size: 12px;
+  }
 
   #foods-table td:first-child, #foods-table th:first-child {
     white-space: normal;
+  }
+
+  /* Food cell + move controls */
+  .food-cell{
+    display:flex;
+    gap:10px;
+    align-items:flex-start;
+    justify-content: space-between;
+  }
+  .food-name{
+    min-width: 0;
+  }
+  .move-btns{
+    display:flex;
+    gap:4px;
+    align-items:center;
+    flex-shrink:0;
+  }
+  .move-btn{
+    width: 22px;
+    height: 18px;
+    border-radius: 4px;
+    border: 1px solid var(--tblr-border-color, #dadde1);
+    background: #fff;
+    color: #333;
+    font-size: 11px;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+  }
+  .move-btn:disabled{
+    opacity: .4;
+    cursor: default;
+  }
+
+  /* Pin button */
+  .pin-btn{
+    width: 22px;
+    height: 18px;
+    border-radius: 4px;
+    border: 1px solid var(--tblr-border-color, #dadde1);
+    background: #fff;
+    color: #333;
+    font-size: 12px;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+  }
+  .pin-btn.pinned{
+    background: #fff3bf;
+    border-color: #ffd43b;
   }
 
   .ate-wrap {
@@ -204,18 +281,10 @@
               <span class="text-muted ms-2">You are entering data for this date.</span>
             </div>
 
-            <button
-              type="button"
-              class="btn btn-success"
-              id="btn-save-history"
-            >
+            <button type="button" class="btn btn-success" id="btn-save-history">
               Save to History
             </button>
-            <button
-              type="button"
-              class="btn btn-outline-danger ms-auto"
-              id="btn-clear-diary"
-            >
+            <button type="button" class="btn btn-outline-danger ms-auto" id="btn-clear-diary">
               Clear Daily Diary
             </button>
           </div>
@@ -228,6 +297,30 @@
     <div class="daily-layout">
       <!-- LEFT: Foods table -->
       <div class="table-wrap">
+
+        <!-- Option B order controls -->
+        <div class="order-bar">
+          <div class="left">
+            <span class="fw-semibold">Order:</span>
+            <select id="order-mode" class="form-select form-select-sm" style="width:auto;">
+              <option value="custom">Custom (use ▲▼)</option>
+              <option value="az">A → Z</option>
+              <option value="recent">Recent (from what you entered)</option>
+            </select>
+
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-reset-order">
+              Reset custom order
+            </button>
+
+            <label class="ms-2 hint">
+              <input type="checkbox" id="pinned-only" style="transform: translateY(1px);">
+              Pinned only
+            </label>
+
+            <span class="hint">Pins always float to the top.</span>
+          </div>
+        </div>
+
         <div class="table-head">
           <table class="table card-table mb-0" id="foods-table">
             <colgroup>
@@ -252,6 +345,7 @@
             </thead>
           </table>
         </div>
+
         <div class="table-body">
           <table class="table card-table mb-0" id="foods-body-table">
             <colgroup>
@@ -308,6 +402,15 @@
   const $ = (s, r=document) => r.querySelector(s);
   const SETTINGS_KEY = 'diaryMeasurementSettings';
 
+  // Ordering + pins (Option B + pins)
+  const ORDER_MODE_KEY = "diary-order-mode-v1";       // 'custom' | 'az' | 'recent'
+  const CUSTOM_ORDER_KEY = "diary-custom-order-v1";   // array of food names
+  const RECENT_FOODS_KEY = "diary-recent-foods-v1";   // array of food names
+  const PINNED_FOODS_KEY = "diary-food-pins-v1";      // array of food names
+  const SHOW_PINNED_ONLY_KEY = "diary-food-pins-only-v1"; // "1" or "0"
+  let ORDER_MODE = "custom";
+  let SHOW_PINNED_ONLY = false;
+
   let FOODS = [];
   let DATE_ISO = null;
   let MEASUREMENT_SETTINGS = {};
@@ -326,6 +429,180 @@
         console.warn("Failed to load measurement settings", e);
         MEASUREMENT_SETTINGS = {};
     }
+  }
+
+  // -------- Pins helpers --------
+  function getPinnedFoods(){
+    try {
+      const raw = localStorage.getItem(PINNED_FOODS_KEY);
+      const arr = JSON.parse(raw || "[]");
+      return Array.isArray(arr) ? arr.map(x => String(x)) : [];
+    } catch(e){
+      return [];
+    }
+  }
+
+  function isPinned(foodName){
+    const name = String(foodName||"").toLowerCase();
+    return getPinnedFoods().some(x => x.toLowerCase() === name);
+  }
+
+  function togglePinned(foodName){
+    const name = String(foodName||"").trim();
+    if (!name) return;
+
+    const list = getPinnedFoods();
+    const lower = name.toLowerCase();
+    const exists = list.some(x => x.toLowerCase() === lower);
+
+    const next = exists
+      ? list.filter(x => x.toLowerCase() !== lower)
+      : [name, ...list];
+
+    try { localStorage.setItem(PINNED_FOODS_KEY, JSON.stringify(next)); } catch(e){}
+  }
+
+  function loadPinnedOnly(){
+    SHOW_PINNED_ONLY = (localStorage.getItem(SHOW_PINNED_ONLY_KEY) === "1");
+    const cb = document.getElementById("pinned-only");
+    if (cb) cb.checked = SHOW_PINNED_ONLY;
+  }
+
+  function setPinnedOnly(v){
+    SHOW_PINNED_ONLY = !!v;
+    try { localStorage.setItem(SHOW_PINNED_ONLY_KEY, SHOW_PINNED_ONLY ? "1":"0"); } catch(e){}
+  }
+
+  // -------- Ordering helpers --------
+  function loadOrderMode(){
+    const v = localStorage.getItem(ORDER_MODE_KEY);
+    ORDER_MODE = (v === "az" || v === "recent" || v === "custom") ? v : "custom";
+    const sel = document.getElementById("order-mode");
+    if (sel) sel.value = ORDER_MODE;
+  }
+
+  function setOrderMode(v){
+    ORDER_MODE = (v === "az" || v === "recent" || v === "custom") ? v : "custom";
+    try { localStorage.setItem(ORDER_MODE_KEY, ORDER_MODE); } catch(e){}
+  }
+
+  function getCustomOrder(){
+    try {
+      const raw = localStorage.getItem(CUSTOM_ORDER_KEY);
+      const arr = JSON.parse(raw || "[]");
+      return Array.isArray(arr) ? arr.map(String) : [];
+    } catch(e){
+      return [];
+    }
+  }
+
+  function setCustomOrder(arr){
+    try { localStorage.setItem(CUSTOM_ORDER_KEY, JSON.stringify(arr || [])); } catch(e){}
+  }
+
+  function ensureCustomOrderSeed(){
+    const existing = getCustomOrder();
+    if (existing.length) return;
+    const seed = (FOODS || []).map(f => f.food).filter(Boolean);
+    setCustomOrder(seed);
+  }
+
+  function getRecentFoods(){
+    try {
+      const raw = localStorage.getItem(RECENT_FOODS_KEY);
+      const arr = JSON.parse(raw || "[]");
+      return Array.isArray(arr) ? arr.map(String) : [];
+    } catch(e){
+      return [];
+    }
+  }
+
+  function touchRecentFood(name){
+    const nm = String(name||"").trim();
+    if (!nm) return;
+    const list = getRecentFoods();
+    const lower = nm.toLowerCase();
+    const next = [nm, ...list.filter(x => String(x).toLowerCase() !== lower)].slice(0, 200);
+    try { localStorage.setItem(RECENT_FOODS_KEY, JSON.stringify(next)); } catch(e){}
+  }
+
+  function snapshotAmounts(){
+    const snap = {};
+    document.querySelectorAll("#foods-body tr").forEach(tr => {
+      const food = (tr.dataset.food || "").toLowerCase();
+      const amt = tr.querySelector("input.amount")?.value;
+      if (food) snap[food] = amt;
+    });
+    return snap;
+  }
+
+  function restoreAmounts(snap){
+    if (!snap) return;
+    document.querySelectorAll("#foods-body tr").forEach(tr => {
+      const food = (tr.dataset.food || "").toLowerCase();
+      if (!food) return;
+      const amt = snap[food];
+      if (amt != null) {
+        const input = tr.querySelector("input.amount");
+        if (input) input.value = amt;
+        updateRowNutrientCells(tr);
+        updateRowSodiumBar(tr);
+      }
+    });
+  }
+
+  function getDisplayFoods(){
+    const base = Array.isArray(FOODS) ? FOODS : [];
+    if (!base.length) return [];
+
+    const pinnedList = getPinnedFoods();
+    const pinnedSet = new Set(pinnedList.map(x => x.toLowerCase()));
+
+    const filtered = SHOW_PINNED_ONLY
+      ? base.filter(f => pinnedSet.has(String(f.food||"").toLowerCase()))
+      : base;
+
+    let ordered = [];
+
+    if (ORDER_MODE === "az"){
+      ordered = [...filtered].sort((a,b) =>
+        String(a.food||"").localeCompare(String(b.food||""), undefined, { sensitivity: "base" })
+      );
+    } else if (ORDER_MODE === "recent"){
+      const recent = getRecentFoods();
+      const idx = new Map();
+      recent.forEach((nm,i) => idx.set(nm.toLowerCase(), i));
+
+      ordered = [...filtered].sort((a,b) => {
+        const ai = idx.has(String(a.food||"").toLowerCase()) ? idx.get(String(a.food||"").toLowerCase()) : 1e9;
+        const bi = idx.has(String(b.food||"").toLowerCase()) ? idx.get(String(b.food||"").toLowerCase()) : 1e9;
+        if (ai !== bi) return ai - bi;
+        return String(a.food||"").localeCompare(String(b.food||""), undefined, { sensitivity:"base" });
+      });
+    } else {
+      // custom
+      ensureCustomOrderSeed();
+      const custom = getCustomOrder();
+      const idx = new Map();
+      custom.forEach((nm,i) => idx.set(nm.toLowerCase(), i));
+
+      ordered = [...filtered].sort((a,b) => {
+        const ai = idx.has(String(a.food||"").toLowerCase()) ? idx.get(String(a.food||"").toLowerCase()) : 1e9;
+        const bi = idx.has(String(b.food||"").toLowerCase()) ? idx.get(String(b.food||"").toLowerCase()) : 1e9;
+        if (ai !== bi) return ai - bi;
+        return String(a.food||"").localeCompare(String(b.food||""), undefined, { sensitivity:"base" });
+      });
+    }
+
+    // Pinned foods float to the top (stable)
+    ordered = [...ordered].sort((a,b) => {
+      const ap = pinnedSet.has(String(a.food||"").toLowerCase()) ? 0 : 1;
+      const bp = pinnedSet.has(String(b.food||"").toLowerCase()) ? 0 : 1;
+      if (ap !== bp) return ap - bp;
+      return 0;
+    });
+
+    return ordered;
   }
 
   function loadGoalRanges(){
@@ -486,13 +763,50 @@
     const tbody = $("#foods-body");
     tbody.innerHTML = "";
 
-    for (const f of FOODS){
+    const displayFoods = getDisplayFoods();
+    const pinnedList = getPinnedFoods();
+    const pinnedSet = new Set(pinnedList.map(x => x.toLowerCase()));
+
+    for (let displayIndex = 0; displayIndex < displayFoods.length; displayIndex++){
+      const f = displayFoods[displayIndex];
       const tr = document.createElement("tr");
+
       const measurementUnit = MEASUREMENT_SETTINGS[f.food] || 'grams';
       const labelText = measurementUnit === 'grams' ? 'Enter gram weight' : `Enter number of ${measurementUnit}`;
+      const canMove = (ORDER_MODE === "custom");
+
+      const pinned = pinnedSet.has(String(f.food||"").toLowerCase());
 
       tr.innerHTML = `
-        <td title="${f.food}">${f.food}</td>
+        <td>
+          <div class="food-cell">
+            <div class="food-name" title="${f.food}">${f.food}</div>
+            <div class="move-btns">
+              <button type="button"
+                      class="pin-btn ${pinned ? "pinned" : ""}"
+                      data-action="pin"
+                      title="Pin/unpin">
+                ${pinned ? "📌" : "☆"}
+              </button>
+
+              <button type="button"
+                      class="move-btn"
+                      data-action="up"
+                      title="Move up"
+                      ${(!canMove) ? "disabled" : ""}>
+                ▲
+              </button>
+              <button type="button"
+                      class="move-btn"
+                      data-action="down"
+                      title="Move down"
+                      ${(!canMove) ? "disabled" : ""}>
+                ▼
+              </button>
+            </div>
+          </div>
+        </td>
+
         <td>
           <div class="ate-wrap">
             <span class="unit-label">${labelText}</span>
@@ -533,6 +847,76 @@
 
       tbody.appendChild(tr);
     }
+
+    // Single delegated handler for pin + move
+    tbody.onclick = (ev) => {
+      const btn = ev.target.closest("button.move-btn, button.pin-btn");
+      if (!btn) return;
+
+      const tr = btn.closest("tr");
+      if (!tr) return;
+
+      const action = btn.dataset.action;
+      const foodName = tr.dataset.food || "";
+      if (!foodName) return;
+
+      const snap = snapshotAmounts();
+
+      // Pin/unpin
+      if (action === "pin"){
+        togglePinned(foodName);
+        renderFoods();
+        restoreAmounts(snap);
+        updateTotals();
+        saveDraft();
+        return;
+      }
+
+      // Moves only in custom mode
+      if (ORDER_MODE !== "custom") return;
+
+      ensureCustomOrderSeed();
+      const custom = getCustomOrder();
+
+      // Moves should operate within pinned group or unpinned group (since pins float)
+      const pinned = isPinned(foodName);
+      const displayFoods = getDisplayFoods();
+      const group = displayFoods.filter(f => isPinned(f.food) === pinned).map(f => f.food);
+
+      const idxInGroup = group.findIndex(nm => String(nm).toLowerCase() === String(foodName).toLowerCase());
+      if (idxInGroup < 0) return;
+
+      let swapWith = -1;
+      if (action === "up")   swapWith = idxInGroup - 1;
+      if (action === "down") swapWith = idxInGroup + 1;
+      if (swapWith < 0 || swapWith >= group.length) return;
+
+      const aName = group[idxInGroup];
+      const bName = group[swapWith];
+
+      const aLower = String(aName).toLowerCase();
+      const bLower = String(bName).toLowerCase();
+
+      // Ensure both exist in custom; if not, seed again.
+      if (!custom.length) ensureCustomOrderSeed();
+      const next = [...getCustomOrder()];
+
+      const ai = next.findIndex(x => String(x).toLowerCase() === aLower);
+      const bi = next.findIndex(x => String(x).toLowerCase() === bLower);
+      if (ai < 0 || bi < 0) return;
+
+      // Swap positions in custom order
+      const tmp = next[ai];
+      next[ai] = next[bi];
+      next[bi] = tmp;
+
+      setCustomOrder(next);
+
+      renderFoods();
+      restoreAmounts(snap);
+      updateTotals();
+      saveDraft();
+    };
   }
 
   function effectiveServings(tr){
@@ -619,6 +1003,11 @@
   function onAmountChange(e){
     const tr = e.target.closest("tr");
     if (!tr) return;
+
+    // Touch recent list when user enters something
+    const amt = Number(tr.querySelector("input.amount").value) || 0;
+    if (amt > 0) touchRecentFood(tr.dataset.food);
+
     updateRowSodiumBar(tr);
     updateRowNutrientCells(tr);
     updateTotals();
@@ -1023,7 +1412,50 @@
     }
     clearDiaryInputs();
     updateTotals();
-    saveDraft(); // This will save an empty draft, effectively clearing it
+    saveDraft(); // clears draft
+  }
+
+  function wireOrderControls(){
+    const sel = document.getElementById("order-mode");
+    const btnReset = document.getElementById("btn-reset-order");
+    const pinnedOnly = document.getElementById("pinned-only");
+
+    if (sel){
+      sel.addEventListener("change", () => {
+        const snap = snapshotAmounts();
+        setOrderMode(sel.value);
+        renderFoods();
+        restoreAmounts(snap);
+        updateTotals();
+        saveDraft();
+      });
+    }
+
+    if (btnReset){
+      btnReset.addEventListener("click", () => {
+        if (!confirm("Reset custom order back to the current default order?")) return;
+        const snap = snapshotAmounts();
+        const seed = (FOODS || []).map(f => f.food).filter(Boolean);
+        setCustomOrder(seed);
+        setOrderMode("custom");
+        if (sel) sel.value = "custom";
+        renderFoods();
+        restoreAmounts(snap);
+        updateTotals();
+        saveDraft();
+      });
+    }
+
+    if (pinnedOnly){
+      pinnedOnly.addEventListener("change", () => {
+        const snap = snapshotAmounts();
+        setPinnedOnly(pinnedOnly.checked);
+        renderFoods();
+        restoreAmounts(snap);
+        updateTotals();
+        saveDraft();
+      });
+    }
   }
 
   function refreshDisplay() {
@@ -1036,11 +1468,25 @@
     try{
       initDate();
       await loadFoodsFromUniver();
+
+      loadOrderMode();
+      loadPinnedOnly();
+      wireOrderControls();
+
       loadGoalRanges();
       ensureTotalsPanel();
+
+      // seed custom order on first run
+      ensureCustomOrderSeed();
+
       refreshDisplay();
     }catch(err){
       console.error(err);
+
+      loadOrderMode();
+      loadPinnedOnly();
+      wireOrderControls();
+
       renderFoods();
       loadGoalRanges();
       ensureTotalsPanel();

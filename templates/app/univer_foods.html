@@ -141,4 +141,80 @@
       // (You’ll see the sheet smoothly resize left/right)
     }, { passive: false });
   </script>
+ <script>
+/**
+ * Turn things like:
+ *   rightClick.pasteColWidth  -> "Paste col width"
+ *   formula.operation.pasteFormula -> "Paste formula"
+ */
+function humanizeKey(key) {
+  let s = (key || "").trim();
+
+  // drop namespaces
+  s = s.replace(/^rightClick\./, "");
+  s = s.replace(/^formula\.operation\./, "");
+  s = s.replace(/^formula\./, "");
+
+  // insert spaces before Capitals: pasteColWidth -> paste Col Width
+  s = s.replace(/([a-z])([A-Z])/g, "$1 $2");
+
+  // clean underscores/dashes
+  s = s.replace(/[_-]+/g, " ");
+
+  // lowercase then Title Case-ish (but keep short words lower unless first)
+  s = s.toLowerCase().split(" ").filter(Boolean);
+
+  const small = new Set(["to","and","or","of","in","on","as","by","for","a","an","the"]);
+  s = s.map((w, i) => {
+    if (i !== 0 && small.has(w)) return w;
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  });
+
+  return s.join(" ");
+}
+
+// Optional overrides for anything you want “perfect”
+const OVERRIDE = new Map([
+  ["rightClick.copy", "Copy"],
+  ["rightClick.paste", "Paste"],
+  ["rightClick.pasteSpecial", "Paste special"],
+  ["rightClick.clearSelection", "Clear selection"],
+  ["rightClick.protectRange", "Protect range…"],
+  ["rightClick.pasteColWidth", "Paste column width"],
+  ["rightClick.pasteBesidesBorder", "Paste without borders"],
+  ["formula.operation.pasteFormula", "Paste formula"],
+]);
+
+function patchMenuLabels() {
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  let node;
+  while ((node = walker.nextNode())) {
+    const raw = (node.nodeValue || "").trim();
+    if (!raw) continue;
+
+    // Only touch the key-ish labels
+    const looksLikeKey =
+      raw.startsWith("rightClick.") ||
+      raw.startsWith("formula.");
+
+    if (!looksLikeKey) continue;
+
+    node.nodeValue = OVERRIDE.get(raw) || humanizeKey(raw);
+  }
+}
+
+document.addEventListener("contextmenu", () => {
+  setTimeout(patchMenuLabels, 0);
+  setTimeout(patchMenuLabels, 50);
+  setTimeout(patchMenuLabels, 150);
+});
+
+// also patch when you hover to open submenus
+document.addEventListener("mousemove", () => {
+  // light touch; just patch whatever is currently on screen
+  patchMenuLabels();
+}, { passive: true });
+</script>
+
+
 {% endblock %}

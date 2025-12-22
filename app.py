@@ -7,40 +7,15 @@ import re
 import io
 import csv
 import datetime
-from datetime import date, timedelta
-from statistics import mean
+from datetime import date
 from functools import wraps
 import random
-import json
+from uuid import uuid4
+
 
 # ---- project modules ----
-from nutrition.constants import TARGET_NUTRIENTS, LABEL_TO_NAME, ALLOWED_TYPES
-from nutrition.utils import today_str, get_targets, get_diary, sum_nutrients, calc_progress
-from nutrition.services.units import grams_from_local_registry, parse_line_to_qty_unit_name
-# NEW imports
-from nutrition.services.nutrients import normalize_per100, recipe_per100_from_detail
-from nutrition.services.quantity_parser import grams_from_qty_text  # (and GRAMS_PER_UNIT_DEFAULT if needed)
-from nutrition.services.preview import compute_portion_preview
-
-from nutrition.services.portions import (
-    recipe_portions,
-    derive_common_volumes_simple,
-    portion_match_from_labels,
-    get_portions_for_fdc,
-    build_hint_from_portions,
-    find_wiftee_portions_for_name,
-    find_alt_portions_for_name,
-)
-from nutrition.services.usda_client import (
-    search_foods,
-    get_food_detail,
-    search_top_for_recipes,
-    search_best_fdc_for_recipes,
-)
-from nutrition.services.food_portion_ref import build_food_portion_rows
-
-# 3rd-party
-from fuzzywuzzy import fuzz
+from nutrition.constants import TARGET_NUTRIENTS
+from nutrition.utils import calc_progress
 
 
 # =============================================================================
@@ -96,11 +71,11 @@ ALL_HISTORY_NUTRIENTS = [
 # Diary helpers
 # =============================================================================
 
-def get_daymap(date: str) -> dict:
+def get_daymap(date_str: str) -> dict:
     """Return today's entries keyed by fdcId, e.g. {'12345': {grams, nutrients,...}}"""
     di = session.setdefault("diary_by_food", {})
-    di.setdefault(date, {})
-    return di[date]
+    di.setdefault(date_str, {})
+    return di[date_str]
 
 
 def sum_nutrients_from_map(daymap: dict) -> dict:
@@ -118,8 +93,10 @@ def sum_nutrients_from_map(daymap: dict) -> dict:
     return totals
 
 
-def sum_named_nutrients(daymap: dict, names=ALL_HISTORY_NUTRIENTS) -> dict:
+def sum_named_nutrients(daymap: dict, names=None) -> dict:
     """Sum only selected nutrients across today's items (daymap values)."""
+    if names is None:
+        names = ALL_HISTORY_NUTRIENTS
     totals = {n: 0.0 for n in names}
     for rec in daymap.values():
         n = rec.get("nutrients", {})
@@ -281,7 +258,7 @@ def _get_day_totals(day_iso: str) -> dict:
     return bucket
 
 
-def _status_for(name: str, avg_val: float, rng_min: float | None, rng_max: float | None, upper_only: float | None):
+def _status_for(name: str, avg_val: float):
     """Return (emoji, text) based on simple ranges—tunable later."""
     # Sodium: use session targets if available
     if name == "Sodium":
@@ -494,9 +471,9 @@ def api_day_get():
 def api_day_add():
     payload = request.get_json(force=True) or {}
     date_iso = payload.get("date") or _iso_today()
-    fdcId = str(payload.get("fdcId") or "").strip()
+    fdc_id = str(payload.get("fdcId") or "").strip()
     grams = float(payload.get("grams") or 100.0)
-    food = next((f for f in _my_foods() if str(f.get("fdcId")) == fdcId), None)
+    food = next((f for f in _my_foods() if str(f.get("fdcId")) == fdc_id), None)
     if not food:
         return jsonify({"ok": False, "error": "food-not-found"}), 400
 
@@ -504,7 +481,7 @@ def api_day_add():
     n = _nutrients_for_grams(per100, grams)
     entry = {
         "id": _entry_id(),
-        "fdcId": fdcId,
+        "fdcId": fdc_id,
         "description": food.get("description", "(item)"),
         "grams": grams,
         "nutrients": n,
@@ -699,10 +676,9 @@ def _canonicalize_item(payload: dict) -> dict:
         "Iron":       _coerce_float(nutrients.get("Iron")),
         "Calories":   _coerce_float(nutrients.get("Calories")),
     }
-    from uuid import uuid4
-    fdcId = str(payload.get("fdcId") or f"custom:{uuid4().hex[:10]}")
+    fdc_id = str(payload.get("fdcId") or f"custom:{uuid4().hex[:10]}")
     item = {
-        "fdcId": fdcId,
+        "fdcId": fdc_id,
         "description": (payload.get("description") or "").strip() or "Manual Food",
         "brandName": (payload.get("brandName") or "").strip(),
         "dataType": "Manual",
@@ -1048,7 +1024,6 @@ def api_history_csv():
 
 @app.post("/api/foods/create")
 def api_foods_create():
-    from uuid import uuid4
     data = request.get_json(silent=True) or {}
     desc = (data.get("description") or "").strip() or "New Food"
     fid = f"custom:{uuid4().hex[:8]}"

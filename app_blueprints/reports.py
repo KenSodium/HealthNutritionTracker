@@ -12,9 +12,23 @@ from nutrition.utils import get_targets
 reports_bp = Blueprint("reports", __name__)
 
 FEATURED_NUTRIENTS = ["Sodium", "Potassium", "Protein", "Calories"]
+
+# Canonical order (matches Daily Diary / full_days.html labels, minus units)
 ALL_HISTORY_NUTRIENTS = [
-    "Sodium", "Protein", "Carbs", "Fat", "Sat Fat", "Mono Fat", "Poly Fat",
-    "Sugar", "Potassium", "Calcium", "Magnesium", "Iron", "Calories",
+    "Sodium",
+    "Potassium",
+    "Protein",
+    "Calories",
+    "Cholesterol",
+    "Carbs",
+    "Fat",
+    "Sat Fat",
+    "Mono Fat",
+    "Poly Fat",
+    "Sugar",
+    "Calcium",
+    "Magnesium",
+    "Iron",
 ]
 
 
@@ -219,10 +233,8 @@ def weekly_preview():
         ("Calories", "kcal"),
     ]
 
+    # Match Daily Diary canonical order, excluding the featured four.
     supplemental_order = [
-        ("Phosphorus", "mg"),
-        ("Calcium", "mg"),
-        ("Magnesium", "mg"),
         ("Cholesterol", "mg"),
         ("Carbs", "g"),
         ("Fat", "g"),
@@ -230,13 +242,14 @@ def weekly_preview():
         ("Mono Fat", "g"),
         ("Poly Fat", "g"),
         ("Sugar", "g"),
+        ("Calcium", "mg"),
+        ("Magnesium", "mg"),
         ("Iron", "mg"),
     ]
 
     demo_defaults = {
         "Protein": (60, 70),
         "Calories": (1800, 2200),
-        "Phosphorus": (0, 800),
         "Calcium": (1000, 1000),
         "Magnesium": (400, 400),
     }
